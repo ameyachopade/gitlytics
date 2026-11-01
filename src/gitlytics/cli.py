@@ -7,6 +7,12 @@ import argparse
 import sys
 import os
 
+# Ensure Unicode output works seamlessly on Windows consoles (cp1252 / cmd / PowerShell)
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 # Import the three public functions that power every subcommand
 from gitlytics import fetch_traffic, sync, serve_dashboard
 from gitlytics.core import fetch_star_history, StargazersRestrictedError

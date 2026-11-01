@@ -43,7 +43,7 @@ if __name__ == "__main__":
 
     # ── Target username ────────────────────────────────────────────────────────
     USERNAME = sys.argv[1] if len(sys.argv) > 1 else "torvalds"
-    MISSING  = "nonexistent_user_xyzzy_unlikely_to_exist_9182736"
+    MISSING  = "nonexistent-user-xyzzy-91827"
 
     # ── Import check ───────────────────────────────────────────────────────────
     section("0 / 4  Import check")

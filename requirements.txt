@@ -1,4 +1,6 @@
-requests>=2.32.0
-pandas>=2.2.0
-numpy>=1.26.0
-croniter>=2.0.0
+# Core runtime dependencies for Gitlytics (Long-Term Support)
+requests>=2.34.2
+certifi>=2026.10.23
+pandas>=2.2.3
+numpy>=1.26.4
+croniter>=6.2.4

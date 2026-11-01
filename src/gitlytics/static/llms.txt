@@ -1,20 +1,19 @@
-# Gitlytics Dashboard Ecosytem
-> Scope: dashboard.gitlytics.dev/llms.txt
+# Gitlytics Dashboard Workspace
 
-Gitlytics is an open-source GitHub analytics and customization platform providing persistent traffic tracking beyond 14 days, interactive portfolios, SVG badges, custom technology logos, and premium developer profile cards.
+> Hosted cloud analytics workspace and visual dashboard for Gitlytics. Connect GitHub accounts to automatically monitor repository views, clones, referrers, and star growth.
 
-## Key Resources
+## Key Dashboard Links
 
-- [Homepage](https://gitlytics.dev) : Main marketing site with features, architecture, and live examples.
-- [Documentation](https://docs.gitlytics.dev) : Setup guides, CLI reference, library configurations, and API documentation.
-- [Cloud Dashboard](https://dashboard.gitlytics.dev) : Hosted SaaS platform with automated backups and team management.
-- [Blog](https://blog.gitlytics.dev) : Engineering deep-dives, comparison guides, and product updates (including "What is Gitlytics?").
-- [GitHub Core Repository](https://github.com/ameyachopade/gitlytics) : Core library, REST API backend, CLI, and local dashboard server.
-- [Traffic Sync Automation Repository](https://github.com/ameyachopade/gitlytics-github-traffic-automation) : Composite GitHub Action to persist repository metrics beyond the 14-day limit.
-- [Full LLMs Context](https://gitlytics.dev/llms-full.txt) : Complete plain-text documentation for LLM ingestion.
+- [Cloud Dashboard App](https://dashboard.gitlytics.dev) : Interactive web application workspace.
+- [Full AI Context](https://dashboard.gitlytics.dev/llms-full.txt) : Complete plain-text documentation for LLM consumption.
+- [Homepage](https://gitlytics.dev) : Main Gitlytics landing page.
+- [Documentation](https://docs.gitlytics.dev) : Setup guides, CLI commands, and Python library docs.
+- [Blog](https://blog.gitlytics.dev) : Engineering articles and release notes.
 
-## System Components & Domains
+## Main Dashboard Capabilities
 
-1. **Homepage (`gitlytics.dev`)** : Main product presentation site, introducing the core platform, architecture outlines, dynamic showcase badge models, and general release notes.
-2. **React Frontend (`dashboard.gitlytics.dev`)** : Interactive dashboard visualizing views, referrers, clones, star growth, tech logo generation, and custom profile details.
-3. **Core CLI, Python Library & Action (`docs.gitlytics.dev`)** : Script setups, command-line usage, and composite GitHub Action integrations. For detailed CLI setup instructions and library references, refer to the documentation subdomain.
+1. **GitHub OAuth Workspace** : Connect your GitHub account to automatically track and sync private or public repository metrics.
+2. **Interactive Visual Charts** : Real-time area, bar, line, and heatmap charts tracking views, unique visitors, clones, and stargazers over time.
+3. **Traffic Referrers & Content Paths** : Breakdown of top referring sites and most popular content paths inside your repositories.
+4. **Export Options** : Export reports and developer cards as high-resolution PNG or PDF images for READMEs and portfolios.
+5. **Dynamic SVG Badges & Developer Cards** : Customizer engine for generating GitHub README stats cards, streak counters, and technology brand capsules.

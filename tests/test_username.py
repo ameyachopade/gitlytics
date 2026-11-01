@@ -330,3 +330,26 @@ class TestUsernameEndpoint:
         response = self._post("  ameyachopade  ")
         assert response.status_code == 200
         mock_user.assert_called_once_with("ameyachopade")
+
+    def _get(self, username: str):
+        return _client.get(f"/api/username/{username}")
+
+    @patch("gitlytics.api.get_public_user", return_value={
+        "login": "ameyachopade", "name": "Ameya", "avatar_url": "https://x",
+        "html_url": "https://github.com/ameyachopade",
+        "followers": 10, "following": 5, "public_repos": 3, "created_at": "",
+    })
+    @patch("gitlytics.api.get_public_repos", return_value=[])
+    def test_get_valid_username_returns_200(self, mock_repos, mock_user):
+        response = self._get("ameyachopade")
+        assert response.status_code == 200
+        data = response.json()
+        assert "profile" in data
+        assert "repos" in data
+        assert data["profile"]["login"] == "ameyachopade"
+
+    @patch("gitlytics.api.get_public_user", side_effect=ValueError("User 'nobody' not found."))
+    def test_get_unknown_user_returns_404(self, mock_user):
+        response = self._get("nobody")
+        assert response.status_code == 404
+        assert "detail" in response.json()

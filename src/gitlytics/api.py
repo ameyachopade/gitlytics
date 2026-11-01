@@ -188,8 +188,7 @@ def auth(token: str = Body("", embed=True)):
     }
 
 
-@app.post("/api/username")
-def get_username_data(username: str = Body("", embed=True)):
+def _fetch_username_data(username: str):
     if not username or not username.strip():
         raise HTTPException(status_code=400, detail="Username is required.")
     try:
@@ -204,6 +203,16 @@ def get_username_data(username: str = Body("", embed=True)):
     except Exception as exc:
         logger.warning("Username fetch failed for %s: %s", username, exc)
         raise HTTPException(status_code=500, detail="Failed to fetch GitHub data.")
+
+
+@app.get("/api/username/{username}")
+def get_username_data_by_path(username: str):
+    return _fetch_username_data(username)
+
+
+@app.post("/api/username")
+def get_username_data(username: str = Body("", embed=True)):
+    return _fetch_username_data(username)
 
 
 @app.post("/api/traffic")

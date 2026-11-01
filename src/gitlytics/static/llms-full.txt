@@ -1,54 +1,80 @@
-# Gitlytics — Full Technical Context
+# Gitlytics - Full Platform Documentation & Dashboard Guide
 
-> Complete technical documentation for Gitlytics, an open-source GitHub Traffic Analytics and Profile customization platform. This file is intended for LLM consumption.
+> Complete documentation for Gitlytics: persistent GitHub repository traffic analytics, developer profile customization cards, dynamic SVG badges, and interactive dashboards. Optimized for user reference and LLM AI consumption.
+
+---
 
 ## 1. System Overview
 
-Gitlytics captures, deduplicates, and persists GitHub repository traffic data beyond the default 14-day window. It also features a dynamic widget engine to render real-time developer statistics, contribution streaks, and customized technology logos inside GitHub README profiles.
+GitHub's native Traffic API retains repository views, unique visitors, clones, cloners, traffic referrers, and popular paths for a rolling window of **14 days only**. Older traffic metrics are permanently lost.
 
-## 2. Core CLI & Python Library
+**Gitlytics** solves this data retention problem by automatically capturing, deduplicating, and archiving traffic data into long-term CSV data stores. It also provides a suite of dynamic SVG widgets to showcase developer statistics, contribution streaks, repository metrics, and technology logos inside GitHub README profiles and portfolios.
 
-The core library (`gitlytics`) can be installed from PyPI:
+---
+
+## 2. Dashboard Access Modes & Features
+
+The hosted application at `dashboard.gitlytics.dev` offers three access modes:
+
+- **Cloud OAuth Mode** : Log in via GitHub OAuth to automatically sync and track public or private repositories.
+- **Personal Access Token (PAT) Mode** : Supply a read-only Personal Access Token to monitor target repositories without full account linking.
+- **CSV Backup & Offline Mode** : Upload existing Gitlytics CSV backup files or connect to local FastAPI instances for offline visualization.
+
+### Dashboard Workspace Capabilities
+
+- **Traffic Analytics** : Interactive area and bar charts tracking daily/weekly views, unique visitors, clones, and cloners.
+- **Referrer Source Analysis** : Detailed breakdown of top sites directing developers to your repository.
+- **Popular Content Paths** : Analytics on which directories, documentation pages, or files receive the most traffic.
+- **Star Trajectory Timelines** : Lifetime cumulative stargazer growth curves.
+- **PNG & PDF Export** : Export high-resolution report cards and dashboard summaries for portfolios, social media, and READMEs.
+
+---
+
+## 3. Core CLI & Python Package (`gitlytics`)
+
+Install the official package from PyPI:
+
 ```bash
+# Basic CLI and library
 pip install gitlytics
-pip install "gitlytics[dashboard]" # includes local web server
+
+# Include web dashboard support
+pip install "gitlytics[dashboard]"
 ```
 
-### CLI Subcommands
+### CLI Commands
 
-- `gitlytics fetch --repo-name owner/repo` : Fetch live 14-day views and clones. Supports `--return-format timeseries|summary`, `--save-file`, and `--metrics`.
-- `gitlytics sync --repo-name owner/repo --data-dir ./data` : Query the latest traffic and merge it into monthly CSV files (`traffic_YYYY-MM.csv`) with automatic duplicate detection.
-- `gitlytics stars owner/repo` : Sample a repository's lifetime star growth curve using a 10-point pagination algorithm.
-- `gitlytics dashboard` : Launches the local FastAPI server hosting the React dashboard on port 8000.
+- `gitlytics fetch --repo-name owner/repo` : Fetch live 14-day traffic metrics (views, clones, referrers, paths).
+- `gitlytics sync --repo-name owner/repo --data-dir ./data` : Fetch current traffic and merge it into monthly CSV files (`traffic_YYYY-MM.csv`) with automatic duplicate detection.
+- `gitlytics stars owner/repo` : Retrieve cumulative star growth history over the repository's lifetime.
+- `gitlytics dashboard` : Launch the local web dashboard for visual exploration of traffic metrics.
 
-### Python API Usage
+### Python Library Usage
 
 ```python
 import gitlytics
 
-# Fetch views and clones as pandas DataFrame
-df = gitlytics.fetch_traffic(token="ghp_xxx", repo_name="owner/repo")
+# Fetch 14-day traffic data as a pandas DataFrame
+df = gitlytics.fetch_traffic(token="YOUR_GITHUB_TOKEN", repo_name="owner/repo")
 
-# Sync traffic to monthly CSV folder
-gitlytics.sync(token="ghp_xxx", repo_name="owner/repo", data_dir="./data")
+# Sync traffic metrics into long-term CSV archive
+gitlytics.sync(token="YOUR_GITHUB_TOKEN", repo_name="owner/repo", data_dir="./data")
 
-# Sample cumulative star timeline
+# Retrieve star growth timeline history
 history = gitlytics.fetch_star_history(owner="owner", repo="repo")
 ```
 
 ---
 
-## 3. GitHub Action — Traffic Sync Automation
+## 4. GitHub Action - Traffic Sync Automation
 
-The composite GitHub Action `ameyachopade/gitlytics-github-traffic-automation` schedules regular backups to defeat GitHub's 14-day data retention limit.
-
-### Configuration (`.github/workflows/traffic.yml`)
+Automate regular traffic backups using the official GitHub Action `ameyachopade/gitlytics-github-traffic-automation@v1`.
 
 ```yaml
 name: Gitlytics Traffic Sync
 on:
   schedule:
-    - cron: '0 17 */13 * *'  # Runs every 13 days
+    - cron: '0 17 */13 * *'  # Runs automatically every 13 days
   workflow_dispatch:
 
 jobs:
@@ -67,48 +93,33 @@ jobs:
           data_dir: "data/"
 ```
 
-*Required: Create a GitHub PAT with `Administration: Read-only` permissions and register it as `TRAFFIC_TOKEN`.*
-
 ---
 
-## 4. Dynamic Widgets & Profile Customization
+## 5. SVG README Badges & Developer Cards
 
-The platform provides several dynamic SVG generator endpoints for profile customizability:
+Embed dynamic SVG widgets directly into your GitHub README or website:
 
 ### Developer Profile Cards
-Renders beautiful summary stats, commit heatmaps, or contribution streaks.
-- **Pattern**: `/api/cards/{card_type}/{username}.svg`
-- **Supported card types**: `profile-details`, `contribution-streak`, `most-commit-language`, `productive-time`, `repos-per-language`, `stats`
-- **Query parameters**:
-  - `theme` : Visual style (e.g. `dracula`, `tokyonight`, `github-dark`)
-  - `hide_border` : Hide border frame (`true`/`false`)
-  - `border_radius` : Border corner radius in pixels
-  - `locale` : Output language
-  - `streak_mode` : Streak tracking style (`daily` | `weekly`)
-  - `exclude_days` : Weekday indices (0-6) to exclude from streak tracking
-  - `cache` : Bypass backend database cache if set to `false` (`&cache=false`)
-  - **Custom Colors**: `bg`, `bg_gradient_start`, `bg_gradient_end`, `border`, `title`, `text`, `text_secondary`, `accent_secondary`, `highlight`, `chart`
+- **URL Pattern**: `https://api.gitlytics.dev/api/cards/{card_type}/{username}.svg`
+- **Card Types**: `profile-details`, `contribution-streak`, `most-commit-language`, `productive-time`, `repos-per-language`, `stats`
+- **Options**: `theme` (e.g. `dracula`, `tokyonight`, `solarized_dark`, `github-dark`), `hide_border`, `border_radius`, `streak_mode` (`daily`|`weekly`), `exclude_days`
+- **Custom Colors**: `bg`, `border`, `title`, `text`, `text_secondary`, `accent_secondary`, `highlight`, `chart`
 
 ### Repository Metric Charts
-Visualizes clones, views, forks, and star history inside READMEs.
-- **Pattern**: `/api/chart/{owner}/{repo}/{metric}.svg`
-- **Supported metrics**: `views`, `clones`, `stars`, `forks`
-- **Query parameters**: `color` (hex value), `style` (`line` | `area`), `fill` (fill opacity), `milestones` (labels)
+- **URL Pattern**: `https://api.gitlytics.dev/api/chart/{owner}/{repo}/{metric}.svg`
+- **Supported Metrics**: `views`, `clones`, `stars`, `forks`
 
-### Technology Logos
-Generates developer tech stack badges and colored pills.
-- **Pattern**: `/api/logos/{slug}.svg`
-- **Supported styles**:
-  - `logo` : Flat colored SVG tech brand icon
-  - `logo_text` : Filled capsule badge containing the icon and uppercase text (shields.io "for-the-badge" style), dynamically adjusting icon/text colors for contrast.
+### Technology Logos & Stack Capsules
+- **URL Pattern**: `https://api.gitlytics.dev/api/logos/{slug}.svg`
+- **Styles**: `logo` (flat icon), `logo_text` (filled capsule badge)
 
 ---
 
-## 5. Official Resources
+## 6. Official Resources
 
 - Landing Page: https://gitlytics.dev
 - Documentation: https://docs.gitlytics.dev
-- Application: https://dashboard.gitlytics.dev
-- Blog: https://blog.gitlytics.dev (includes "What is Gitlytics?")
-- Main Repo: https://github.com/ameyachopade/gitlytics
-- Action Repo: https://github.com/ameyachopade/gitlytics-github-traffic-automation
+- Blog: https://blog.gitlytics.dev
+- Dashboard: https://dashboard.gitlytics.dev
+- Core Repository: https://github.com/ameyachopade/gitlytics
+- GitHub Action: https://github.com/ameyachopade/gitlytics-github-traffic-automation

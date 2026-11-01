@@ -2,7 +2,7 @@
 
 <img src="https://raw.githubusercontent.com/ameyachopade/gitlytics/main/assets/logo.png" alt="Gitlytics Logo" width="150" />
 
-# Gitlytics v0.6.3
+# Gitlytics v0.7.0
 ### GitHub Traffic Analytics, Dynamic Widgets & Automation
 
 [![License](https://api.gitlytics.dev/api/badge/tech.svg?slug=license&style=icon_label_value&label=License&label_color=%23555555&variant=plastic&value=Apache+2.0&value_color=%232F81F7)](LICENSE)
@@ -156,7 +156,7 @@ Explore our official engineering publication at **[blog.gitlytics.dev](https://b
 
 ## 🔑 Flexible Authentication Modes
 
-Gitlytics v0.6.3 supports 3 authentication modes:
+Gitlytics v0.7.0 supports 3 authentication modes:
 
 1. **Token Authentication (PAT)**: Pass your GitHub Personal Access Token (Classic or Fine-Grained) with `repo` scope to fetch private & public repository metrics.
 2. **Demo Mode (Instant Exploration)**: Explore the web dashboard and CLI immediately using curated sample data without entering any credentials.
