@@ -1,83 +1,167 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/ameyachopade/gitlytics/main/assets/logo.png" alt="Gitlytics Logo" width="150" />
+<img src="https://raw.githubusercontent.com/ameyachopade/gitlytics/main/assets/logo.png" alt="Gitlytics Logo" width="140" />
 
-# Gitlytics v0.7.0
-### GitHub Traffic Analytics, Dynamic Widgets & Automation
+# Gitlytics
+### Next-Gen GitHub Traffic Intelligence, Dynamic SVG Widgets & Automation
 
-[![License](https://api.gitlytics.dev/api/badge/tech.svg?slug=license&style=icon_label_value&label=License&label_color=%23555555&variant=plastic&value=Apache+2.0&value_color=%232F81F7)](LICENSE)
-[![Python](https://api.gitlytics.dev/api/badge/tech.svg?slug=python&style=icon_label_value&label=Python&label_color=%23555555&variant=plastic&value=3.9%2B&value_color=%233776AB)](https://www.python.org/)
-[![PyPI](https://api.gitlytics.dev/api/badge/pypi/gitlytics.svg)](https://pypi.org/project/gitlytics/)
-[![React](https://api.gitlytics.dev/api/badge/tech.svg?slug=react&style=icon_label_value&label=UI&label_color=%23555555&variant=plastic&value=React&value_color=%2361DAFB)](https://react.dev/)
-[![FastAPI](https://api.gitlytics.dev/api/badge/tech.svg?slug=fastapi&style=icon_label_value&label=Backend&label_color=%23555555&variant=plastic&value=FastAPI&value_color=%23009688)](https://fastapi.tiangolo.com/)
-[![Automation](https://api.gitlytics.dev/api/badge/tech.svg?slug=githubactions&style=icon_label_value&label=Data+Backup&label_color=%23555555&variant=plastic&value=Automation&value_color=%232088FF)](https://github.com/ameyachopade/gitlytics-github-traffic-automation)
-[![Homepage](https://api.gitlytics.dev/api/badge/tech.svg?slug=homepage&style=icon_label_value&label=Homepage&label_color=%23555555&variant=plastic&value=gitlytics.dev&value_color=%233FB950)](https://gitlytics.dev)
-[![Blog](https://api.gitlytics.dev/api/badge/tech.svg?slug=blog&style=icon_label_value&label=Blog&label_color=%23555555&variant=plastic&value=blog.gitlytics.dev&value_color=%233FB950)](https://blog.gitlytics.dev)
-[![Live](https://api.gitlytics.dev/api/badge/tech.svg?slug=livedemo&style=icon_label_value&label=Live+Demo&label_color=%23555555&variant=plastic&value=dashboard.gitlytics.dev&value_color=%233FB950)](https://dashboard.gitlytics.dev)
-[![Docs](https://api.gitlytics.dev/api/badge/tech.svg?slug=docs&style=icon_label_value&label=Docs&label_color=%23555555&variant=plastic&value=docs.gitlytics.dev&value_color=%233FB950)](https://docs.gitlytics.dev)
+[![PyPI version](https://img.shields.io/pypi/v/gitlytics?color=38bdf8&label=PyPI&logo=pypi&logoColor=white)](https://pypi.org/project/gitlytics/)
+[![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![React](https://img.shields.io/badge/Frontend-React_18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![Live Dashboard](https://img.shields.io/badge/Live_Studio-dashboard.gitlytics.dev-818cf8?logo=googlechrome&logoColor=white)](https://dashboard.gitlytics.dev)
+[![Documentation](https://img.shields.io/badge/Docs-docs.gitlytics.dev-10b981?logo=readthedocs&logoColor=white)](https://docs.gitlytics.dev)
 
-<br/>Please consider giving this project a ⭐ if you find it helpful! <br/>
+<br/>
 
-**Beautiful GitHub traffic analytics for all your repositories — public and private.** <br/> Track views, clones, referrers, popular paths, stargazer trajectories, and health metrics indefinitely.
+**The complete developer analytics suite for GitHub.**  
+Bypass GitHub's 14-day traffic cliff, generate 31+ ultra-modern vector SVG profile cards with 33 high-contrast themes, track stargazer trajectories, and launch a local or self-hosted analytics dashboard in seconds.
 
-✨ **[Try the live dashboard at dashboard.gitlytics.dev](https://dashboard.gitlytics.dev)** ✨  
-📝 **[Read engineering deep-dives at blog.gitlytics.dev](https://blog.gitlytics.dev)** ✨  
-📚 **[Read the documentation at docs.gitlytics.dev](https://docs.gitlytics.dev)**
+[**Explore Live Dashboard**](https://dashboard.gitlytics.dev) • [**Read the Docs**](https://docs.gitlytics.dev) • [**Engineering Blog**](https://blog.gitlytics.dev) • [**GitHub Action**](https://github.com/ameyachopade/gitlytics-github-traffic-automation)
+
+<br/>
 
 </div>
 
 ---
 
-## 🎨 Interactive Profile Widgets, Cards & Badges
+## ⚡ Highlights at a Glance
 
-Elevate your GitHub profile README and developer portfolios with Gitlytics' native, dynamic widget rendering suite. Serve real-time stats cards, commit-level language breakdowns, repository health scorecards, concept tags, and tech badges.
+| Feature | Description |
+| :--- | :--- |
+| **🚨 14-Day Limit Defeated** | Automatically snapshot & merge repository views, clones, referrers, and paths indefinitely. |
+| **📇 31+ Modern Profile Cards** | Pure vector SVG cards with custom icons, glassmorphism, responsive geometry, and zero dependencies. |
+| **🎨 33 High-Contrast Themes** | Carefully tuned dark and light palettes (`default`, `dracula`, `tokyonight`, `nord`, `obsidian-gold`, `synthwave84`, etc.). |
+| **🏷️ 200+ Tech Badges & Capsules** | Multi-color brand badges and text capsule tags for AI/ML methods, SRE architectures, and contact links. |
+| **📈 Stargazer Trajectories** | Real-time cumulative star growth tracking and milestone timeline projections. |
+| **🤖 AI Health Scorecards** | Cloud AI diagnostics analyzing commit velocity, issue health, PR turnaround, and traffic surges. |
+| **💻 CLI, Python SDK & Web UI** | Use it as a terminal command, import it into Python pipelines, or self-host the full React studio. |
 
-### 📇 Profile & Repository Cards
-Showcase your global activity or project metrics with gorgeous, theme-customizable cards:
+---
+
+## 🎨 Ultra-Modern Profile Cards & Widgets
+
+Elevate your GitHub profile README with Gitlytics' native, dynamic vector SVG rendering engine. All cards feature crisp typography, custom vector squircle icons, subtle gradient accents, and real-time GitHub GraphQL data.
+
+### 🖼️ Featured Card Previews
 
 <div align="center">
-  <table border="0">
+  <table border="0" width="100%">
     <tr>
       <td align="center" width="50%">
-        <b>👤 User Profile Details Card</b> (Tokyo Night + Coral Title)<br/>
-        <img src="https://api.gitlytics.dev/api/cards/profile-details/demo.svg?theme=tokyonight&title=ff9e64&text=a9b1d6&accent_secondary=7aa2f7&v=2" alt="Profile Details" width="380" />
+        <b>👤 Flagship Developer Profile Card</b> (Obsidian Slate)<br/>
+        <sub>Avatar, bio, verified status, 4 metric squircles & top languages bar</sub><br/><br/>
+        <img src="https://api.gitlytics.dev/api/cards/profile-card/demo.svg?theme=default&v=3" alt="Developer Profile Card" width="95%" />
       </td>
       <td align="center" width="50%">
-        <b>📈 Repository Metrics Card</b> (Nord + Dark Steel Slate)<br/>
-        <img src="https://api.gitlytics.dev/api/cards/stats/demo.svg?theme=nord&title=88c0d0&text=d8dee9&bg=2e3440&border=4c566a&v=2" alt="Repository Stats" width="380" />
+        <b>✨ Account Highlights 2×2</b> (Tokyo Night)<br/>
+        <sub>Top repository, primary language share, peak year & longevity badge</sub><br/><br/>
+        <img src="https://api.gitlytics.dev/api/cards/account-highlights/demo.svg?theme=tokyonight&v=3" alt="Account Highlights" width="95%" />
       </td>
     </tr>
     <tr>
       <td align="center" width="50%">
-        <b>📊 Language Distribution Chart</b> (Radical + Pink Accents)<br/>
-        <img src="https://api.gitlytics.dev/api/cards/repos-per-language/demo.svg?theme=radical&title=fe60a1&accent_secondary=a6e22e&v=2" alt="Language Distribution" width="380" />
+        <b>📊 Language Diversity Index</b> (Dracula)<br/>
+        <sub>Radial diversity score gauge, repo share, byte volume & stack capsules</sub><br/><br/>
+        <img src="https://api.gitlytics.dev/api/cards/language-diversity/demo.svg?theme=dracula&v=3" alt="Language Diversity" width="95%" />
       </td>
       <td align="center" width="50%">
-        <b>🔥 Contribution Streak Tracker</b> (Solarized Dark + Olive green)<br/>
-        <img src="https://api.gitlytics.dev/api/cards/contribution-streak/demo.svg?theme=solarized_dark&title=268bd2&text=859900&bg=002b36&hide_border=true&v=2" alt="Contribution Streak" width="380" />
+        <b>🍩 Top Languages by Code Size</b> (Nord)<br/>
+        <sub>Authentic GitHub language colors, segmented donut ring & progress pills</sub><br/><br/>
+        <img src="https://api.gitlytics.dev/api/cards/most-commit-language/demo.svg?theme=nord&v=3" alt="Top Languages Donut" width="95%" />
+      </td>
+    </tr>
+    <tr>
+      <td align="center" width="50%">
+        <b>📈 Issue Statistics & Annual Breakdown</b> (Obsidian Gold)<br/>
+        <sub>Key issue metrics with full annual activity distribution bar chart</sub><br/><br/>
+        <img src="https://api.gitlytics.dev/api/cards/issue-stats/demo.svg?theme=obsidian-gold&v=3" alt="Issue Statistics" width="95%" />
+      </td>
+      <td align="center" width="50%">
+        <b>📁 Recently Updated Repositories</b> (Catppuccin Mocha)<br/>
+        <sub>Elevated repo cards with language badges, star counts & relative timestamps</sub><br/><br/>
+        <img src="https://api.gitlytics.dev/api/cards/recent-repos/demo.svg?theme=catppuccin-mocha&v=3" alt="Recent Repositories" width="95%" />
       </td>
     </tr>
   </table>
 </div>
 
+### 📋 Quick Embed Snippet
+
+Add any card to your GitHub `README.md` with a single line of Markdown:
+
+```markdown
+<!-- Flagship Developer Profile Card -->
+[![My Profile Card](https://api.gitlytics.dev/api/cards/profile-card/YOUR_USERNAME.svg?theme=default)](https://github.com/YOUR_USERNAME)
+
+<!-- Account Highlights -->
+[![Account Highlights](https://api.gitlytics.dev/api/cards/account-highlights/YOUR_USERNAME.svg?theme=tokyonight)](https://github.com/YOUR_USERNAME)
+
+<!-- Language Diversity Gauge -->
+[![Language Diversity](https://api.gitlytics.dev/api/cards/language-diversity/YOUR_USERNAME.svg?theme=dracula)](https://github.com/YOUR_USERNAME)
+```
+
+<details>
+<summary><b>🔍 View All 31 Available Card Slugs</b></summary>
+
+<br/>
+
+| Category | Card Slug | Description |
+| :--- | :--- | :--- |
+| **Profile** | `profile-card` | **Flagship** developer profile summary with avatar, metrics & language bar |
+| **Profile** | `profile-compact` | Sleek horizontal developer banner with avatar and core numbers |
+| **Profile** | `profile-details` | Profile card with monthly contribution trendline curve |
+| **Profile** | `stats` | General overview with GitHub Octocat watermark and stat rows |
+| **Profile** | `github-age` | Account age, active milestones, and join date timeline |
+| **Languages** | `most-commit-language` | Donut chart of languages by byte volume with authentic language colors |
+| **Languages** | `repos-per-language` | Donut chart of repositories per language |
+| **Languages** | `language-bars` | Horizontal distribution bars with repository count badges |
+| **Languages** | `language-diversity` | Radial diversity score meter and 4-card ecosystem scorecard |
+| **Activity** | `weekly-activity` | 7-day volume breakdown (Mon–Sun) with peak day highlight |
+| **Activity** | `monthly-activity` | 12-month contribution distribution bars |
+| **Activity** | `productive-time` | 24-hour commit rhythm with timezone offset and peak productivity hour |
+| **Activity** | `contribution-streak` | Circular streak badge with flame icon, consistency meter & active days |
+| **Repos** | `top-repos` | Elevated cards for top starred repositories with language & fork pills |
+| **Repos** | `recent-repos` | Elevated cards for recently pushed repositories with relative time badges |
+| **Repos** | `repo-breakdown` | Owned vs. forked repository ratio segmented visual bar |
+| **Repos** | `repo-insights` | Velocity and engagement ratio across your public repository suite |
+| **Contributions** | `commit-stats` | 4 commit metric cards + annual commit breakdown bar chart |
+| **Contributions** | `pr-stats` | 4 PR metric cards + annual pull request activity bar chart |
+| **Contributions** | `issue-stats` | 4 issue metric cards + annual issue activity bar chart |
+| **Contributions** | `review-stats` | 4 review metric cards + annual code review breakdown bar chart |
+| **Contributions** | `combined-contributions` | Multi-segment donut chart comparing Commits, PRs, Issues, and Reviews |
+| **Growth** | `year-comparison` | Year-over-year delta card (+32%) with dual comparison volume columns |
+| **Growth** | `contribution-growth` | Smooth curved multi-year area growth chart with peak indicator dots |
+| **Growth** | `milestone-progress` | Gamified progress tracker toward 1,000 commits, 100 PRs, 100 stars |
+| **Growth** | `star-journey` | Star ranking bars for top repositories and average star velocity |
+| **Growth** | `code-metrics` | Total codebase volume and multi-language storage breakdown |
+| **Impact** | `social-impact` | Community forks, stars, and developer reach engagement card |
+| **Impact** | `account-highlights` | 2×2 glass grid: Best repo, top language, peak year & account age |
+| **Impact** | `open-source-impact` | Influence score and multi-stack open source contributions |
+| **Impact** | `achievement-board` | 6 unlocked vs. locked GitHub achievement badge cards |
+
+</details>
+
+---
+
 ### 🏷️ Multi-Source Tech Badges & Concept Capsules
-Generate beautifully styled capsule badges for your tech stack. Support for **200+ technology logos** from official libraries, plus **custom text-only capsule badges** for concepts without brand icons (e.g. AI/ML methods, SRE, RAG):
+
+Generate clean capsule badges for your tech stack. Supports official brand logos plus **custom text-only capsules** for advanced concepts:
 
 <div align="center">
   
-  **🛠️ Languages & Frameworks (Multi-color & Flat Brand Colors)**
-  
+  **Languages & Cloud Frameworks**<br/>
   <img src="https://api.gitlytics.dev/api/logos/typescript.svg?style=logo_text&v=2" alt="TypeScript" /> &nbsp;
   <img src="https://api.gitlytics.dev/api/logos/python.svg?style=logo_text&v=2" alt="Python" /> &nbsp;
   <img src="https://api.gitlytics.dev/api/logos/react.svg?style=logo_text&v=2" alt="React" /> &nbsp;
   <img src="https://api.gitlytics.dev/api/logos/fastapi.svg?style=logo_text&v=2" alt="FastAPI" /> &nbsp;
-  <img src="https://api.gitlytics.dev/api/logos/aws.svg?style=logo_text&v=2" alt="AWS" /> &nbsp;
-  <img src="https://api.gitlytics.dev/api/logos/docker.svg?style=logo_text&v=2" alt="Docker" />
+  <img src="https://api.gitlytics.dev/api/logos/docker.svg?style=logo_text&v=2" alt="Docker" /> &nbsp;
+  <img src="https://api.gitlytics.dev/api/logos/aws.svg?style=logo_text&v=2" alt="AWS" />
   
   <br/><br/>
   
-  **🧠 AI/ML & Engineering Concepts (Text-Only Capsules)**
-  
+  **AI/ML & Architecture Capsules**<br/>
   <img src="https://api.gitlytics.dev/api/logos/agenticai.svg?v=2" alt="Agentic AI" /> &nbsp;
   <img src="https://api.gitlytics.dev/api/logos/rag.svg?v=2" alt="RAG" /> &nbsp;
   <img src="https://api.gitlytics.dev/api/logos/embeddings.svg?v=2" alt="Embeddings" /> &nbsp;
@@ -86,8 +170,7 @@ Generate beautifully styled capsule badges for your tech stack. Support for **20
   
   <br/><br/>
   
-  **🔗 Contact & Platform Connectors**
-  
+  **Connectors & Social**<br/>
   <img src="https://api.gitlytics.dev/api/logos/github.svg?style=logo_text&v=2" alt="GitHub" /> &nbsp;
   <img src="https://api.gitlytics.dev/api/logos/linkedin.svg?style=logo_text&v=2" alt="LinkedIn" /> &nbsp;
   <img src="https://api.gitlytics.dev/api/logos/gmail.svg?style=logo_text&v=2" alt="Gmail" /> &nbsp;
@@ -98,170 +181,92 @@ Generate beautifully styled capsule badges for your tech stack. Support for **20
 
 ---
 
-## 📌 Table of Contents
+## 🚨 Defeating GitHub's 14-Day Traffic Cliff
 
-- [🔗 The Gitlytics Ecosystem](#-the-gitlytics-ecosystem)
-- [🤖 Cloud AI Analysis & Automated Insights](#-cloud-ai-analysis--automated-insights)
-- [📝 Blog & Engineering Space](#-blog--engineering-space)
-- [🔑 Flexible Authentication Modes](#-flexible-authentication-modes)
-- [🚨 Defeating GitHub's 14-Day Traffic Limit](#-defeating-githubs-14-day-traffic-limit)
-- [🛠️ Installation](#installation)
-- [⌨️ Core CLI Commands](#core-cli-commands)
-  - [1️⃣ `gitlytics fetch`](#1-gitlytics-fetch-live-terminal-data)
-  - [2️⃣ `gitlytics sync`](#2-gitlytics-sync-background-database-cron)
-  - [3️⃣ `gitlytics dashboard`](#3-gitlytics-dashboard-react-web-ui)
-  - [4️⃣ `gitlytics stars`](#4-gitlytics-stars-stargazer-history)
-- [🐍 Native Python API](#native-python-api)
-  - [1️⃣ `gitlytics.fetch_traffic()`](#1-gitlyticsfetch_traffic)
-  - [2️⃣ `gitlytics.sync()`](#2-gitlyticssync)
-  - [3️⃣ `gitlytics.serve_dashboard()`](#3-gitlyticsserve_dashboard)
-  - [4️⃣ `gitlytics.fetch_star_history()`](#4-gitlyticsfetch_star_history)
-- [📊 CSV Database Schema](#csv-database-schema)
-- [🌟 Show Your Support](#show-your-support)
-- [📄 License](#license)
+> **⚠️ Did you know?** GitHub automatically purges view, clone, and referrer traffic records **older than 14 days**. Once that window closes, historical metrics are gone forever.
 
----
+Gitlytics eliminates this limitation through automated background synchronization:
 
-## 🔗 The Gitlytics Ecosystem
+```mermaid
+flowchart LR
+    A["GitHub Traffic API\n(14-Day Rolling Window)"] -->|Automated Snapshot| B["Gitlytics Sync Engine"]
+    B -->|Deduplicate & Merge| C[("Persistent CSV / Cloud DB\n(Indefinite Retention)")]
+    C --> D["Interactive Dashboard"]
+    C --> E["Dynamic SVG Profile Cards"]
+    C --> F["AI Health Reports"]
+```
 
-The full Gitlytics platform consists of modular open-source components:
+### ⏱️ Setup in Under 2 Minutes:
+Use our pre-configured companion GitHub Action that runs automatically every 13 days to snapshot and backup your data:
 
-- 📊 **[Gitlytics Live Dashboard](https://dashboard.gitlytics.dev)**: Production web interface to visualize repository traffic, trends, and historical charts.
-- 📝 **[Gitlytics Blog](https://blog.gitlytics.dev)**: Engineering deep-dives, comparison guides, and open-source analytics tutorials.
-- 📚 **[Gitlytics Metadata Pages & Docs](https://docs.gitlytics.dev)**: Technical reference, badge explorer, and CLI documentation.
-- ⚙️ **[Gitlytics Automation](https://github.com/ameyachopade/gitlytics-github-traffic-automation)**: GitHub Action companion tool that fetches and backs up traffic data automatically.
-
----
-
-## 🤖 Cloud AI Analysis & Automated Insights
-
-Gitlytics Cloud includes an automated AI intelligence engine powered by LLMs (Groq API) and cloud database synchronization (Supabase):
-
-- **Automated AI Repository Health Checks**: Analyzes repository traffic trends, CI stability, PR cycle times, and contributor activity to produce automated health scorecards.
-- **Anomaly & Spike Detection**: Identifies traffic surges, viral referrer shifts, and clone spikes, surfacing actionable insights.
-- **Cloud Persistence & Multi-Repo Aggregation**: Synchronizes historical snapshots to cloud storage, enabling seamless multi-repository comparison and organization-wide analytics.
-- **Weekly Email Digest Reports**: Delivers automated weekly summaries (via Resend API) summarizing top referral channels, view growth, and stargazer milestones directly to your inbox.
-
----
-
-## 📝 Blog & Engineering Space
-
-Explore our official engineering publication at **[blog.gitlytics.dev](https://blog.gitlytics.dev)**:
-
-- **Engineering Deep-Dives**: Learn how Gitlytics solves GitHub's 14-day traffic retention cap, renders high-performance SVG badges, and handles multi-repository data pipelines.
-- **Comparison Guides**: Detailed breakdowns comparing Gitlytics with native GitHub Insights, Shields.io, and third-party analytics platforms.
-- **AI Agent Context**: The blog provides a dedicated structured text endpoint ([`https://blog.gitlytics.dev/llms-full.txt`](https://blog.gitlytics.dev/llms-full.txt)) formatted specifically for consumption by AI agents and LLM tools.
-
----
-
-## 🔑 Flexible Authentication Modes
-
-Gitlytics v0.7.0 supports 3 authentication modes:
-
-1. **Token Authentication (PAT)**: Pass your GitHub Personal Access Token (Classic or Fine-Grained) with `repo` scope to fetch private & public repository metrics.
-2. **Demo Mode (Instant Exploration)**: Explore the web dashboard and CLI immediately using curated sample data without entering any credentials.
-3. **Headless TV & Kiosk Mode**: Pre-authenticate sessions for office monitors or team dashboards:
-   ```bash
-   gitlytics dashboard --token "ghp_xxxx" --data-dir "./data"
-   ```
-
----
-
-## 🚨 Defeating GitHub's 14-Day Traffic Limit
-
-> **⚠️ Did you know?** GitHub normally **only saves your repository traffic data for 14 days**. After two weeks, your valuable views and clones data is permanently deleted.
-
-We built a companion automation tool that runs silently every 13 days using GitHub Actions to snapshot and preserve your traffic data.
-
-👉 **[Set up GitHub Traffic Automation here](https://github.com/ameyachopade/gitlytics-github-traffic-automation)** (Takes under 2 minutes to set up!)
-
-Once your traffic snapshots are saved, Gitlytics automatically merges overlaps to build continuous historical analytics over months or years.
+👉 **[Deploy the Gitlytics GitHub Traffic Automation Action](https://github.com/ameyachopade/gitlytics-github-traffic-automation)**
 
 ---
 
 ## 🛠️ Installation
 
-Install via PyPI:
-
 ```bash
-# Basic CLI and Python Core Module
+# Core CLI and Python Analytics Engine
 pip install gitlytics
 
-# Full installation (includes React Dashboard web engine)
+# Full Package (Includes React Dashboard Web Server)
 pip install "gitlytics[dashboard]"
 ```
 
 ---
 
-## ⌨️ Core CLI Commands
+## ⌨️ CLI Quick Reference
 
-Gitlytics provides 4 primary command-line utilities:
-
-### 1️⃣ `gitlytics fetch` (Live Terminal Data)
-Fetch your live 14-day traffic and print ASCII tables directly in your console.
 ```bash
-gitlytics fetch --token ghp_your_token_here --print-table
+# 1. Fetch live 14-day traffic and display formatted ASCII tables
+gitlytics fetch --token "ghp_your_token" --print-table
 
-# Fetch specific metrics only (e.g., views and clones)
-gitlytics fetch --token ghp_your_token_here --print-table --metrics views clones
-```
+# 2. Filter specific metrics (e.g., views, clones, referrers)
+gitlytics fetch --token "ghp_your_token" --metrics views clones
 
-### 2️⃣ `gitlytics sync` (Background Database Cron)
-Append traffic snapshots to local CSV databases. Can run as a background cron job:
-```bash
-# Sync once
-gitlytics sync --token ghp_your_token --data-dir ./data
+# 3. Synchronize snapshots into local database
+gitlytics sync --token "ghp_your_token" --data-dir "./data"
 
-# Run as a background cron job (runs daily at 11:00 PM)
-gitlytics sync --token ghp_your_token --data-dir ./data --schedule-cron "0 23 * * *"
-```
+# 4. Schedule automatic sync as a background cron job (e.g. daily at 11 PM)
+gitlytics sync --token "ghp_your_token" --data-dir "./data" --schedule-cron "0 23 * * *"
 
-### 3️⃣ `gitlytics dashboard` (React Web UI)
-Launch the React + FastAPI web dashboard.
-```bash
+# 5. Launch the React + FastAPI web analytics studio
 gitlytics dashboard
-```
 
-### 4️⃣ `gitlytics stars` (Stargazer History)
-Fetch the historical cumulative stargazer growth trajectory for a repository.
-```bash
-gitlytics stars owner/repo --token ghp_your_token
+# 6. Retrieve cumulative stargazer trajectory for a repository
+gitlytics stars owner/repo --token "ghp_your_token"
 ```
 
 ---
 
-## 🐍 Native Python API
+## 🐍 Native Python SDK
 
-Import Gitlytics into Python applications to build custom analytics pipelines or host the web engine programmatically.
+Incorporate Gitlytics directly into custom pipelines, Jupyter notebooks, or scheduled scripts:
 
-### 1️⃣ `gitlytics.fetch_traffic()`
 ```python
 import gitlytics
 
-# Fetch traffic for all accessible repositories
+# 1. Fetch traffic data as a pandas DataFrame or timeseries dict
 df = gitlytics.fetch_traffic(
     token="ghp_your_token",
-    return_format="dataframe"  # Options: "dataframe", "timeseries", or "summary"
+    return_format="dataframe"  # Options: "dataframe", "timeseries", "summary"
 )
-```
 
-### 2️⃣ `gitlytics.sync()`
-```python
-import gitlytics
-
-# Sync snapshots and export consolidated JSON for the dashboard
+# 2. Sync snapshots and export consolidated dashboard JSON
 gitlytics.sync(
     token="ghp_your_token",
     data_dir="./data",
     export_json="./data/export.json"
 )
-```
 
-### 3️⃣ `gitlytics.serve_dashboard()`
-```python
-import gitlytics
+# 3. Query historical cumulative star trajectory
+star_points = gitlytics.fetch_star_history(
+    owner="ameyachopade",
+    repo="gitlytics",
+    token="ghp_your_token"
+)
 
-# Serve the dashboard programmatically on a custom port
+# 4. Programmatically serve the web studio on a custom port
 gitlytics.serve_dashboard(
     host="0.0.0.0",
     port=8080,
@@ -270,54 +275,56 @@ gitlytics.serve_dashboard(
 )
 ```
 
-### 4️⃣ `gitlytics.fetch_star_history()`
-```python
-import gitlytics
+---
 
-points = gitlytics.fetch_star_history(
-    owner="ameyachopade",
-    repo="gitlytics",
-    token="ghp_your_token"
-)
-```
+## 📊 Database Schema (23 Daily Metrics)
+
+Gitlytics stores normalized daily records in local CSV files or cloud storage:
+
+| Column | Type | Description |
+| :--- | :--- | :--- |
+| `date` | `str` | ISO 8601 date string (`YYYY-MM-DD`). |
+| `repository` | `str` | Full GitHub repository name (`owner/repo`). |
+| `is_private` | `bool` | Privacy state of the repository. |
+| `views` | `int` | Total page views recorded on this day. |
+| `unique_visitors` | `int` | Unique visitors browsing the repository. |
+| `clones` | `int` | Total git clone operations on this day. |
+| `unique_cloners` | `int` | Distinct IP / client clone operations. |
+| `stars` | `int` | Total cumulative stargazer snapshot count. |
+| `forks` | `int` | Total cumulative fork count. |
+| `language` | `str` | Primary programming language. |
+| `topics` | `str` | JSON array of repository tags and topics. |
+| `watchers_count` | `int` | Total watcher count. |
+| `pushed_at` | `str` | Last code push timestamp. |
+| `created_at` | `str` | Repository creation timestamp. |
+| `open_issues_count` | `int` | Total open issues snapshot. |
+| `top_referrer` | `str` | Highest-volume external referral domain. |
+| `top_referrer_views` | `int` | Total views attributed to top referrer. |
+| `top_referrer_uniques` | `int` | Unique visitors attributed to top referrer. |
+| `_raw_referrers` | `str` | Complete JSON breakdown of all referral channels. |
+| `top_path` | `str` | Most frequently visited repository file/path. |
+| `top_path_views` | `int` | Views attributed to the top path. |
+| `top_path_uniques` | `int` | Unique visitors attributed to the top path. |
+| `_raw_paths` | `str` | Complete JSON breakdown of all popular paths. |
 
 ---
 
-## 📊 CSV Database Schema
+## 🔗 Ecosystem & Links
 
-Local CSV databases track up to 23 metrics per snapshot:
-
-| Column | Type | Description |
-|---|---|---|
-| `date` | `str` | ISO date (`YYYY-MM-DD`) for this day's traffic snapshot. |
-| `repository` | `str` | Full GitHub repository name (`owner/repo`). |
-| `is_private` | `bool` | `True` if repository is private, `False` otherwise. |
-| `views` | `int` | Total page views on this day. |
-| `unique_visitors` | `int` | Unique visitors on this day. |
-| `clones` | `int` | Total git clone operations on this day. |
-| `unique_cloners` | `int` | Unique clone clients on this day. |
-| `stars` | `int` | Current total star count snapshot. |
-| `forks` | `int` | Current total fork count snapshot. |
-| `language` | `str` | Primary programming language of the repository. |
-| `topics` | `str` | JSON array containing repository tags/topics. |
-| `watchers_count` | `int` | Total watchers of the repository. |
-| `pushed_at` | `str` | Last push ISO timestamp. |
-| `created_at` | `str` | Repository creation ISO timestamp. |
-| `open_issues_count` | `int` | Total number of open issues. |
-| `top_referrer` | `str` | Top external traffic referral source. |
-| `top_referrer_views` | `int` | Views sent by the top referrer. |
-| `top_referrer_uniques` | `int` | Uniques sent by the top referrer. |
-| `_raw_referrers` | `str` | Raw JSON array of all referral sources. |
-| `top_path` | `str` | Most visited repository file path. |
-| `top_path_views` | `int` | Views for the top path. |
-| `top_path_uniques` | `int` | Uniques for the top path. |
-| `_raw_paths` | `str` | Raw JSON array of all popular paths. |
+- 🌐 **[Live Dashboard](https://dashboard.gitlytics.dev)**: Production Web UI to explore widgets and inspect traffic.
+- 📚 **[Documentation](https://docs.gitlytics.dev)**: Full API guides, card parameters, and self-hosting documentation.
+- 📝 **[Engineering Blog](https://blog.gitlytics.dev)**: Architecture breakdowns, caching strategies, and performance benchmarks.
+- ⚙️ **[Traffic Automation Action](https://github.com/ameyachopade/gitlytics-github-traffic-automation)**: Official GitHub Action companion.
+- 📦 **[PyPI Package](https://pypi.org/project/gitlytics/)**: Official Python package distribution.
 
 ---
 
 ## 🌟 Show Your Support
 
-If you find this project useful, please consider giving it a ⭐ on [GitHub](https://github.com/ameyachopade/gitlytics)!
+If Gitlytics has saved your repository data or elevated your profile, please consider giving the repository a **⭐ Star on [GitHub](https://github.com/ameyachopade/gitlytics)** — it helps the project grow!
+
+---
 
 ## 📄 License
-Licensed under the [Apache License 2.0](LICENSE).
+
+Distributed under the **Apache License 2.0**. See [`LICENSE`](LICENSE) for full details.
