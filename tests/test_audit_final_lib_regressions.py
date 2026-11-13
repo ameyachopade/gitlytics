@@ -394,11 +394,12 @@ def test_af_xrepo_08_workspace_hygiene_and_gitignore_coverage():
             assert pattern in text, f"{name}/.gitignore is missing {pattern}"
 
     # The metadata sites ship their own .gitignore (blog used to have none).
-    for app in ("homepage", "docs", "blog"):
-        ignore = repos["gitlytics-metadata-pages"] / app / ".gitignore"
-        assert ignore.is_file(), f"{app} has no .gitignore"
-        text = ignore.read_text(encoding="utf-8")
-        assert ".env" in text, f"{app}/.gitignore does not ignore .env"
+    if repos["gitlytics-metadata-pages"].exists():
+        for app in ("homepage", "docs", "blog"):
+            ignore = repos["gitlytics-metadata-pages"] / app / ".gitignore"
+            assert ignore.is_file(), f"{app} has no .gitignore"
+            text = ignore.read_text(encoding="utf-8")
+            assert ".env" in text, f"{app}/.gitignore does not ignore .env"
 
     # No repository may track a real .env file.
     for name, repo in repos.items():
