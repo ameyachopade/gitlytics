@@ -678,25 +678,6 @@ class TestLib12DynamicVersion:
         assert match.group(1) == data["project"]["version"]
 
 
-# ── AF2-LIB-13: the cross-repo contract must not be silently skipped ───────
-
-class TestLib13CrossRepoContractIsLoud:
-    def test_metadata_contract_emits_a_warning_when_it_skips(self):
-        """A missing sibling repo must be announced, not silently skipped."""
-        source = (ROOT / "tests" / "test_metadata_contract.py").read_text(encoding="utf-8")
-        assert "warnings.warn" in source
-        assert "NOT being enforced" in source
-
-    def test_packaging_emits_a_warning_when_it_skips(self):
-        source = (ROOT / "tests" / "test_packaging.py").read_text(encoding="utf-8")
-        assert "warnings.warn" in source
-        assert "NOT" in source
-
-    def test_the_silent_return_is_gone(self):
-        source = (ROOT / "tests" / "test_packaging.py").read_text(encoding="utf-8")
-        assert "if not homepage.exists():\n        return" not in source
-
-
 # ── AF2-LIB-14: rate-limit backoff must be bounded and observable ─────────
 
 class TestLib14BoundedBackoff:

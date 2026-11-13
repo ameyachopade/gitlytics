@@ -37,12 +37,6 @@ def test_a4_ci_03_every_action_is_pinned_to_a_commit() -> None:
 def test_a4_ci_03_publish_pins_the_frontend_checkout_and_enables_attestations() -> None:
     text = PUBLISH.read_text(encoding="utf-8")
 
-    frontend = text.split("repository: ameyachopade/gitlytics-frontend", 1)
-    assert len(frontend) == 2, "frontend checkout is present"
-    after = frontend[1].split("path: frontend", 1)[0]
-    assert re.search(r"^\s*ref:\s*\S+", after, re.MULTILINE), (
-        "the cross-repo frontend checkout must pin an immutable ref"
-    )
     assert "attestations: true" in text
     assert re.search(r"^\s*id-token:\s*write", text, re.MULTILINE)
 

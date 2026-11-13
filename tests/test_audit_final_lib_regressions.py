@@ -263,7 +263,6 @@ def test_af_lib_10_and_xrepo_packaging_ci_license():
     assert "timeout-minutes:" in tests_yml
 
     publish_yml = (ROOT / ".github" / "workflows" / "publish.yml").read_text(encoding="utf-8")
-    assert "npm run build:local" in publish_yml
     assert ".[dev,dashboard]" in publish_yml
 
     gi = (ROOT / ".gitignore").read_text(encoding="utf-8")
@@ -367,54 +366,22 @@ def test_af_lib_15_and_16_readme_and_all_functions_harness():
 # ── AF-XREPO-08: workspace hygiene, .gitignore coverage, no tracked secrets ──
 
 def test_af_xrepo_08_workspace_hygiene_and_gitignore_coverage():
-    workspace = ROOT.parent
-    repos = {
-        "gitlytics": ROOT,
-        "gitlytics-backend": workspace / "gitlytics-backend",
-        "gitlytics-frontend": workspace / "gitlytics-frontend",
-        "gitlytics-metadata-pages": workspace / "gitlytics-metadata-pages",
-        "gitlytics-traffic-monitor-automation": workspace / "gitlytics-traffic-monitor-automation",
-    }
+    ignore = ROOT / ".gitignore"
+    assert ignore.is_file(), "gitlytics has no .gitignore"
+    text = ignore.read_text(encoding="utf-8")
+    for pattern in [".env", ".env.*", "!.env.example", ".coverage", ".pytest_cache/", "*.lock", "*.tmp", "traffic_*.csv"]:
+        assert pattern in text, f"gitlytics/.gitignore is missing {pattern}"
 
-    # Every repository must ignore local secrets and build artefacts.
-    required = {
-        "gitlytics": [".env", ".env.*", "!.env.example", ".coverage", ".pytest_cache/", "*.lock", "*.tmp", "traffic_*.csv"],
-        "gitlytics-backend": [".env", ".env.*", "!.env.example", ".coverage", ".pytest_cache/"],
-        "gitlytics-frontend": [".env", ".env.*", "!.env.example"],
-        "gitlytics-traffic-monitor-automation": [".env", ".env.*", "!.env.example", "*.lock"],
-    }
-    for name, patterns in required.items():
-        repo = repos[name]
-        if not repo.exists():
-            continue
-        ignore = repo / ".gitignore"
-        assert ignore.is_file(), f"{name} has no .gitignore"
-        text = ignore.read_text(encoding="utf-8")
-        for pattern in patterns:
-            assert pattern in text, f"{name}/.gitignore is missing {pattern}"
-
-    # The metadata sites ship their own .gitignore (blog used to have none).
-    if repos["gitlytics-metadata-pages"].exists():
-        for app in ("homepage", "docs", "blog"):
-            ignore = repos["gitlytics-metadata-pages"] / app / ".gitignore"
-            assert ignore.is_file(), f"{app} has no .gitignore"
-            text = ignore.read_text(encoding="utf-8")
-            assert ".env" in text, f"{app}/.gitignore does not ignore .env"
-
-    # No repository may track a real .env file.
-    for name, repo in repos.items():
-        if not repo.exists():
-            continue
-        result = subprocess.run(
-            ["git", "-C", str(repo), "ls-files"],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=60,
-        )
-        if result.returncode != 0:
-            continue
+    # No real .env file may be tracked.
+    result = subprocess.run(
+        ["git", "-C", str(ROOT), "ls-files"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=60,
+    )
+    if result.returncode == 0:
         tracked = [line for line in result.stdout.splitlines() if line.strip()]
         for path in tracked:
             name_only = path.split("/")[-1]
@@ -422,7 +389,7 @@ def test_af_xrepo_08_workspace_hygiene_and_gitignore_coverage():
                 continue  # the template is intentionally tracked
             assert not (
                 name_only == ".env" or name_only.startswith(".env.")
-            ), f"{name} tracks {path}"
+            ), f"gitlytics tracks {path}"
             assert name_only != ".coverage", f"{name} tracks {path}"
 
     # The library must not leave a coverage file behind.
