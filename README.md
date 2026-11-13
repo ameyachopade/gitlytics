@@ -18,7 +18,7 @@
 **The complete developer analytics suite for GitHub.**  
 Bypass GitHub's 14-day traffic cliff, track stargazer trajectories, and launch a local or self-hosted analytics dashboard in seconds.
 
-> **What ships in the `pip install gitlytics` wheel:** the CLI, the Python SDK, and the local/self-hosted React dashboard. The **SVG profile cards and tech-badge renderer is a separate hosted service** at [`api.gitlytics.dev`](https://api.gitlytics.dev) — the package does not contain a card generator. See [Ecosystem & Links](#-ecosystem--links).
+> **What ships in the `pip install gitlytics` wheel:** the CLI, the Python SDK, and the local/self-hosted React dashboard. The **SVG profile cards and tech-badge renderer is a separate hosted service** at [`api.gitlytics.dev`](https://api.gitlytics.dev) - the package does not contain a card generator. See [Ecosystem & Links](#-ecosystem--links).
 
 [**Explore Live Dashboard**](https://dashboard.gitlytics.dev) • [**Read the Docs**](https://docs.gitlytics.dev) • [**Engineering Blog**](https://blog.gitlytics.dev) • [**GitHub Action**](https://github.com/ameyachopade/gitlytics-github-traffic-automation)
 
@@ -42,7 +42,7 @@ Bypass GitHub's 14-day traffic cliff, track stargazer trajectories, and launch a
 
 ## 🎨 Hosted Profile Cards & Widgets
 
-> **Hosted service, not the pip package.** The card and logo renderer below is served by the Gitlytics cloud API at [`api.gitlytics.dev`](https://api.gitlytics.dev). The `gitlytics` wheel you install from PyPI contains the traffic CLI, the Python SDK and the local dashboard — it does **not** contain an SVG card generator. Install the package for traffic analytics; embed the hosted URLs for cards.
+> **Hosted service, not the pip package.** The card and logo renderer below is served by the Gitlytics cloud API at [`api.gitlytics.dev`](https://api.gitlytics.dev). The `gitlytics` wheel you install from PyPI contains the traffic CLI, the Python SDK and the local dashboard - it does **not** contain an SVG card generator. Install the package for traffic analytics; embed the hosted URLs for cards.
 
 Elevate your GitHub profile README with the Gitlytics hosted native, dynamic vector SVG rendering engine. All cards feature crisp typography, custom vector squircle icons, subtle gradient accents, and real-time GitHub GraphQL data.
 
@@ -123,7 +123,7 @@ Supported theme values via `?theme=<name>`:
 
 ### 🏷️ Hosted Multi-Source Tech Badges & Concept Capsules
 
-> Served by the hosted service at [`api.gitlytics.dev`](https://api.gitlytics.dev) — 181 tech logos plus custom text-only capsules. Not part of the pip package.
+> Served by the hosted service at [`api.gitlytics.dev`](https://api.gitlytics.dev) - 181 tech logos plus custom text-only capsules. Not part of the pip package.
 
 Generate clean capsule badges for your tech stack. Supports official brand logos plus **custom text-only capsules** for advanced concepts:
 
@@ -199,7 +199,7 @@ gitlytics dashboard
 gitlytics stars owner/repo --token "ghp_your_token"
 ```
 
-> **CLI output contract:** the traffic table and the success summary go to **stdout**; every error and warning goes to **stderr**. Exit codes are meaningful — `0` success, `1` runtime/upstream failure, `2` bad input — so `gitlytics fetch ... > out.csv` never mixes diagnostics into your data.
+> **CLI output contract:** the traffic table and the success summary go to **stdout**; every error and warning goes to **stderr**. Exit codes are meaningful - `0` success, `1` runtime/upstream failure, `2` bad input - so `gitlytics fetch ... > out.csv` never mixes diagnostics into your data.
 
 ---
 
@@ -276,9 +276,9 @@ Gitlytics stores normalized daily records in local CSV files or cloud storage:
 
 ## 🔗 Ecosystem & Links
 
-- 📦 **[PyPI Package](https://pypi.org/project/gitlytics/)**: Official Python package distribution — the traffic CLI, the Python SDK and the local/self-hosted dashboard.
+- 📦 **[PyPI Package](https://pypi.org/project/gitlytics/)**: Official Python package distribution - the traffic CLI, the Python SDK and the local/self-hosted dashboard.
 - 🌐 **[Live Dashboard](https://dashboard.gitlytics.dev)**: Production Web UI to explore widgets and inspect traffic.
-- 🖼️ **[Hosted Card & Logo API](https://api.gitlytics.dev)**: Serves the 31 SVG profile-card slugs (33 themes) and 181 tech-logo capsules. This is a separate hosted service — it is **not** bundled in the `gitlytics` wheel.
+- 🖼️ **[Hosted Card & Logo API](https://api.gitlytics.dev)**: Serves the 31 SVG profile-card slugs (33 themes) and 181 tech-logo capsules. This is a separate hosted service - it is **not** bundled in the `gitlytics` wheel.
 - 📚 **[Documentation](https://docs.gitlytics.dev)**: Full API guides, card parameters, and self-hosting documentation.
 - 📝 **[Engineering Blog](https://blog.gitlytics.dev)**: Architecture breakdowns, caching strategies, and performance benchmarks.
 - ⚙️ **[Traffic Automation Action](https://github.com/ameyachopade/gitlytics-github-traffic-automation)**: Official GitHub Action companion.
@@ -287,7 +287,7 @@ Gitlytics stores normalized daily records in local CSV files or cloud storage:
 
 ## ⭐ Show Your Support
 
-If Gitlytics has saved your repository data or elevated your profile, please consider giving the repository a **⭐ Star on [GitHub](https://github.com/ameyachopade/gitlytics)** — it helps the project grow!
+If Gitlytics has saved your repository data or elevated your profile, please consider giving the repository a **⭐ Star on [GitHub](https://github.com/ameyachopade/gitlytics)** - it helps the project grow!
 
 ---
 
