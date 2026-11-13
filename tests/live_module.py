@@ -308,29 +308,16 @@ if __name__ == "__main__":
 
     print("\n  Simulating missing uvicorn…")
     import unittest.mock as _mock
+    import gitlytics as _gl
     with _mock.patch.dict("sys.modules", {"uvicorn": None}):
         try:
-            # Force re-evaluation by calling directly
-            import importlib
-            import gitlytics as _gl
-            # Monkey-patch to test the guard
-            original = sys.modules.get("uvicorn")
-            sys.modules["uvicorn"] = None  # type: ignore
-            try:
-                _gl.serve_dashboard.__wrapped__ if hasattr(_gl.serve_dashboard, "__wrapped__") else None
-                # Call the real function — uvicorn import inside should fail
-                # We test by importing the module function body directly
-                import importlib.util
-                spec = importlib.util.spec_from_file_location(
-                    "gitlytics_init",
-                    os.path.join(os.path.dirname(gitlytics.__file__), "__init__.py")
-                )
-            finally:
-                if original is not None:
-                    sys.modules["uvicorn"] = original
-                elif "uvicorn" in sys.modules:
-                    del sys.modules["uvicorn"]
-            ok("ImportError guard confirmed (uvicorn lazy-imported inside serve_dashboard)")
+            _gl.serve_dashboard(port=18766)
+            fail("Expected ImportError when uvicorn is missing")
+        except ImportError as exc:
+            if "dashboard" in str(exc):
+                ok("ImportError guard confirmed (serve_dashboard raised clean dashboard extra hint)")
+            else:
+                warn(f"ImportError raised with unexpected message: {exc}")
         except Exception as exc:
             warn(f"Guard test inconclusive: {exc}")
 

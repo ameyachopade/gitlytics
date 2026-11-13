@@ -19,7 +19,7 @@ from gitlytics.core import get_public_user, get_public_repos
 # ── get_public_user ───────────────────────────────────────────────────────────
 
 class TestGetPublicUser:
-    @patch("gitlytics.core.requests.get")
+    @patch("gitlytics.core._http_get")
     def test_valid_user_returns_profile(self, mock_get):
         # A 200 response should give back the parsed profile fields
         mock_resp = MagicMock()
@@ -45,7 +45,7 @@ class TestGetPublicUser:
         assert profile["followers"] == 100
         assert profile["public_repos"] == 20
 
-    @patch("gitlytics.core.requests.get")
+    @patch("gitlytics.core._http_get")
     def test_null_name_falls_back_to_login(self, mock_get):
         # GitHub allows empty display names — must fall back to login
         mock_resp = MagicMock()
@@ -64,7 +64,7 @@ class TestGetPublicUser:
         profile = get_public_user("ghost")
         assert profile["name"] == "ghost"
 
-    @patch("gitlytics.core.requests.get")
+    @patch("gitlytics.core._http_get")
     def test_unknown_user_raises_value_error(self, mock_get):
         # A 404 from the GitHub API should raise a ValueError with the username
         mock_resp = MagicMock()
@@ -73,14 +73,14 @@ class TestGetPublicUser:
         with pytest.raises(ValueError, match="ameyachopade"):
             get_public_user("ameyachopade")
 
-    @patch("gitlytics.core.requests.get")
+    @patch("gitlytics.core._http_get")
     def test_network_error_raises_runtime_error(self, mock_get):
         import requests
         mock_get.side_effect = requests.exceptions.ConnectionError("offline")
         with pytest.raises(RuntimeError, match="unreachable"):
             get_public_user("someuser")
 
-    @patch("gitlytics.core.requests.get")
+    @patch("gitlytics.core._http_get")
     def test_returns_all_expected_keys(self, mock_get):
         # Every field the dashboard depends on must be present
         mock_resp = MagicMock()
@@ -105,7 +105,7 @@ class TestGetPublicUser:
                     "public_repos", "created_at", "html_url"):
             assert key in profile, f"Missing key: {key}"
 
-    @patch("gitlytics.core.requests.get")
+    @patch("gitlytics.core._http_get")
     def test_non_404_server_error_raises_runtime_error(self, mock_get):
         mock_resp = MagicMock()
         mock_resp.status_code = 500
@@ -113,7 +113,7 @@ class TestGetPublicUser:
         with pytest.raises(RuntimeError):
             get_public_user("someone")
 
-    @patch("gitlytics.core.requests.get")
+    @patch("gitlytics.core._http_get")
     def test_html_url_present(self, mock_get):
         # html_url is required by the dashboard to link to the GitHub profile page
         mock_resp = MagicMock()

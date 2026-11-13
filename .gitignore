@@ -1,5 +1,10 @@
 .env
+.env.*
+!.env.example
 github_traffic_*.csv
+traffic_*.csv
+*.tmp
+*.lock
 __pycache__/
 *.pyc
 .venv/
@@ -20,4 +25,5 @@ htmlcov/
 
 # OS and logs
 .DS_Store
+Thumbs.db
 *.log

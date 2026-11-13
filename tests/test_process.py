@@ -8,6 +8,7 @@ Run with:
 """
 import io
 import json
+import numpy as np
 import pytest
 import pandas as pd
 
@@ -16,6 +17,7 @@ from gitlytics.process import (
     build_react_payload,
     process_uploaded_csv,
     _parse_raw,
+    _to_bool,
 )
 
 
@@ -396,3 +398,9 @@ class TestProcessUploadedCsv:
         assert isinstance(result, list)
         assert result[0]["views"] == 0
         assert result[0]["clones"] == 0
+
+    def test_to_bool_recognizes_numpy_bool(self):
+        # LIB-07: numpy.bool_ is not a subclass of Python bool and previously
+        # fell through to the string/None path, misclassifying private repos.
+        assert _to_bool(np.bool_(True)) is True
+        assert _to_bool(np.bool_(False)) is False

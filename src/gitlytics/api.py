@@ -7,13 +7,14 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import re
 import secrets
-import shutil
+import tempfile
 import threading as _threading
 import time as _time
-import uuid
 from collections import OrderedDict
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException, Body, File, Header, Request, Response, UploadFile, Depends
@@ -75,12 +76,94 @@ _AUTH_NEG_TTL = 10  # short TTL for negative results so a transient 5xx doesn't 
 _AUTH_CACHE_MAX = 256  # cap entries so a long-running worker can't grow unbounded
 
 # Hard cap on CSV upload size — prevents DoS via /api/upload-csv.
-_MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+#
+# AF2-XC-04: keep this in lock-step with the cloud backend
+# (`gitlytics-backend/app/auth/token.py::MAX_UPLOAD_BYTES`) and the published
+# docs ("up to 5 MB per upload"). A larger local-only cap let a backup that
+# worked in `gitlytics dashboard` fail with HTTP 413 in the cloud.
+_MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+
+# Only canonical sync files belong in the historical read path. Uploaded
+# previews must never be merged in — they would otherwise accumulate forever.
+_SYNC_CSV_RE = re.compile(r"^traffic_\d{4}(?:-\d{2})?\.csv$")
+
+# Short-lived cache for live GitHub traffic. Without this every dashboard POST
+# burns ~5 GitHub calls per repo and exhausts the PAT quota in ~20 loads.
+_TRAFFIC_CACHE: "OrderedDict[str, tuple[float, pd.DataFrame]]" = OrderedDict()
+_TRAFFIC_CACHE_LOCK = _threading.Lock()
+_TRAFFIC_CACHE_TTL = 120.0  # seconds
+_TRAFFIC_CACHE_MAX = 16
+
+_DEEP_STATS_CACHE: "OrderedDict[tuple, tuple[float, dict]]" = OrderedDict()
+_DEEP_STATS_CACHE_LOCK = _threading.Lock()
+_DEEP_STATS_CACHE_TTL = 300.0  # seconds
+_DEEP_STATS_CACHE_MAX = 16
+
+
+def _parse_static_security_headers(headers_file: Path) -> dict[str, str]:
+    """Parse the packaged ``_headers`` file into a header map.
+
+    ``_headers`` is a Netlify/Cloudflare-Pages file: a path pattern on one
+    line, followed by indented ``Name: value`` lines. Only the global ``/*``
+    block is used for the local server (the rest are cache rules for CDN
+    asset paths).
+    """
+    parsed: dict[str, str] = {}
+    if not headers_file.exists():
+        return parsed
+    in_global_block = False
+    try:
+        lines = headers_file.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return parsed
+    for raw in lines:
+        line = raw.rstrip()
+        if not line.strip() or line.strip().startswith("#"):
+            continue
+        if not line[0].isspace():
+            # A new path pattern starts a new block.
+            in_global_block = line.strip() == "/*"
+            continue
+        if not in_global_block:
+            continue
+        if ":" not in line:
+            continue
+        name, _, value = line.strip().partition(":")
+        name = name.strip()
+        value = value.strip()
+        if not name or name.lower() == "cache-control":
+            # Cache rules are CDN-specific — the local server manages its own
+            # caching semantics and must not inherit them.
+            continue
+        parsed[name] = value
+    return parsed
+
+
+def _static_security_headers() -> list[tuple[bytes, bytes]]:
+    """Security headers the local dashboard must emit on every response.
+
+    The packaged ``_headers`` file carries the Content-Security-Policy that
+    protects the hosted dashboard. A self-hosted ``gitlytics dashboard``
+    serves exactly the same HTML/JS, so it must ship the same protection
+    (AF2-LIB-17).
+    """
+    headers: dict[str, str] = {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+    }
+    static_dir = Path(__file__).parent / "static"
+    headers.update(_parse_static_security_headers(static_dir / "_headers"))
+    return [
+        (name.lower().encode("latin-1"), value.encode("latin-1", errors="replace"))
+        for name, value in headers.items()
+    ]
 
 
 class _SecurityHeadersMiddleware:
     def __init__(self, app):
         self.app = app
+        self.extra_headers = _static_security_headers()
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -90,11 +173,10 @@ class _SecurityHeadersMiddleware:
         async def send_wrapper(message):
             if message["type"] == "http.response.start":
                 headers = list(message.get("headers", []))
-                headers.extend([
-                    (b"x-content-type-options", b"nosniff"),
-                    (b"x-frame-options", b"DENY"),
-                    (b"referrer-policy", b"strict-origin-when-cross-origin"),
-                ])
+                present = {name for name, _ in headers}
+                for name, value in self.extra_headers:
+                    if name not in present:
+                        headers.append((name, value))
                 message = {**message, "headers": headers}
             await send(message)
 
@@ -108,28 +190,94 @@ def _require_upload_access(
     request: Request,
     x_upload_key: str | None = Header(default=None),
 ) -> None:
-    client_host = (request.client.host if request.client else "").lower()
-    if client_host in ("127.0.0.1", "::1", "testclient", "testserver"):
-        return
+    """Reject cross-origin uploads even from loopback.
+
+    Browsers attach an ``Origin`` (or at least ``Referer``) header to POSTs.
+    Same-host requests are accepted; non-browser clients must present the
+    configured upload key. There is deliberately no unconditional loopback
+    bypass: a malicious page can make the victim's browser POST to
+    127.0.0.1, and that request is cross-origin for the attacker.
+    """
+    headers = getattr(request, "headers", None) or {}
+    origin = headers.get("origin") or headers.get("referer")
+    if origin:
+        try:
+            parsed = urlsplit(origin)
+        except ValueError:
+            parsed = None
+        host = (headers.get("host") or "").lower()
+        if (
+            parsed is not None
+            and parsed.scheme in ("http", "https")
+            and parsed.netloc
+            and host
+            and parsed.netloc.lower() == host
+        ):
+            return
+
     expected = (os.environ.get("GITLYTICS_UPLOAD_KEY") or "").strip()
-    if not expected:
-        raise HTTPException(status_code=403, detail="Upload not allowed from this host.")
     got = (x_upload_key or "").strip()
-    if got and secrets.compare_digest(got, expected):
+    if expected and got and secrets.compare_digest(got, expected):
         return
-    raise HTTPException(status_code=403, detail="Upload not allowed from this host.")
+    raise HTTPException(
+        status_code=403,
+        detail="Upload requires a same-origin request or a valid upload key.",
+    )
+
+
+def _require_browser_same_origin(request: Request) -> None:
+    """Block cross-origin browser requests (including simple POSTs) when an
+    Origin/Referer is attached, protecting local GITLYTICS_TOKEN quota (AF-LIB-03).
+    """
+    headers = getattr(request, "headers", None) or {}
+    origin = headers.get("origin") or headers.get("referer")
+    if origin:
+        try:
+            parsed = urlsplit(origin)
+        except ValueError:
+            parsed = None
+        host = (headers.get("host") or "").lower()
+        if (
+            parsed is None
+            or parsed.scheme not in ("http", "https")
+            or not parsed.netloc
+            or not host
+            or parsed.netloc.lower() != host
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Cross-origin request rejected.",
+            )
+        if request.method == "POST":
+            ctype = (headers.get("content-type") or "").split(";")[0].strip().lower()
+            if ctype and ctype != "application/json":
+                raise HTTPException(
+                    status_code=415,
+                    detail="Unsupported Content-Type; application/json required.",
+                )
+
+
+def _env_token_allowed() -> bool:
+    """Environment-token fallback is opt-in (set by serve_dashboard for loopback)."""
+    return (os.environ.get("GITLYTICS_ALLOW_ENV_TOKEN") or "").strip().lower() in {
+        "1", "true", "yes", "on",
+    }
 
 
 def _get_token(token: str = None) -> str:
-    # C-2: explicit empty string must not fall through to the env token
+    # Explicit request tokens always win. The operator's environment token is
+    # only usable when the dashboard was started with an explicit --token on a
+    # loopback bind; otherwise every caller must authenticate for themselves.
     if token and token.strip():
         return token.strip()
-    return os.environ.get("GITLYTICS_TOKEN")
+    if _env_token_allowed():
+        return os.environ.get("GITLYTICS_TOKEN")
+    return None
 
 
 def _validate_token_cached(token: str):
     # M-1: cache validation results to avoid a double HTTP round-trip on every /api/traffic call
-    key = hashlib.sha256(token.encode()).hexdigest()[:16]
+    key = hashlib.sha256(token.encode()).hexdigest()
     now = _time.time()
     # Lock guards the read-then-write so two threads can't both miss the
     # cache and double-fetch the same token (FastAPI runs sync routes in
@@ -157,13 +305,14 @@ def _validate_token_cached(token: str):
 @app.get("/api/config")
 def get_config():
     return {
-        "has_token": bool(os.environ.get("GITLYTICS_TOKEN")),
+        "has_token": bool(os.environ.get("GITLYTICS_TOKEN")) and _env_token_allowed(),
         "has_data_dir": bool(os.environ.get("GITLYTICS_DATA_DIR"))
     }
 
 
 @app.post("/api/auth")
-def auth(token: str = Body("", embed=True)):
+def auth(request: Request, token: str = Body("", embed=True)):
+    _require_browser_same_origin(request)
     # Validate the token and return the user's GitHub profile info
     active_token = _get_token(token)
     if not active_token:
@@ -188,13 +337,21 @@ def auth(token: str = Body("", embed=True)):
     }
 
 
-def _fetch_username_data(username: str):
+def _fetch_username_data(username: str, token: str | None = None):
     if not username or not username.strip():
         raise HTTPException(status_code=400, detail="Username is required.")
     try:
         clean = validate_github_username(username.strip())
-        profile = get_public_user(clean)
-        repos = get_public_repos(clean)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    try:
+        active_token = _get_token(token)
+        if active_token:
+            profile = get_public_user(clean, token=active_token)
+            repos = get_public_repos(clean, token=active_token)
+        else:
+            profile = get_public_user(clean)
+            repos = get_public_repos(clean)
         return {"profile": profile, "repos": repos}
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
@@ -206,17 +363,144 @@ def _fetch_username_data(username: str):
 
 
 @app.get("/api/username/{username}")
-def get_username_data_by_path(username: str):
-    return _fetch_username_data(username)
+def get_username_data_by_path(
+    request: Request,
+    username: str,
+    authorization: str | None = Header(default=None),
+):
+    _require_browser_same_origin(request)
+    tok = None
+    if authorization:
+        parts = authorization.strip().split(None, 1)
+        tok = parts[1].strip() if len(parts) == 2 and parts[0].lower() == "bearer" else authorization.strip()
+    return _fetch_username_data(username, token=tok)
 
 
 @app.post("/api/username")
-def get_username_data(username: str = Body("", embed=True)):
-    return _fetch_username_data(username)
+def get_username_data(
+    request: Request,
+    username: str = Body("", embed=True),
+    token: str = Body("", embed=True),
+    authorization: str | None = Header(default=None),
+):
+    _require_browser_same_origin(request)
+    tok = (token or "").strip() or None
+    if not tok and authorization:
+        parts = authorization.strip().split(None, 1)
+        tok = parts[1].strip() if len(parts) == 2 and parts[0].lower() == "bearer" else authorization.strip()
+    return _fetch_username_data(username, token=tok)
+
+
+_CSV_CACHE: "OrderedDict[tuple[str, float], tuple[int, int, pd.DataFrame]]" = OrderedDict()
+_CSV_CACHE_LOCK = _threading.Lock()
+
+
+def _normalize_csv_header(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalise a CSV header to the canonical lower-case schema.
+
+    Legacy / hand-edited exports use title-case or mixed-case headers
+    (``Date``, ``Repository``, ``Views``). Without normalisation the
+    downstream ``groupby("repository")`` raises ``KeyError: 'repository'`` and
+    turns the whole dashboard into an HTTP 500 (AF2-LIB-02).
+
+    This mirrors what ``automation._normalize_field`` /
+    ``process.process_uploaded_csv`` already do: strip a UTF-8 BOM, trim,
+    lower-case, map the legacy display names onto the canonical columns and
+    drop duplicate columns so ``df[col]`` is always a Series.
+    """
+    from gitlytics.process import _LEGACY_COLUMN_MAP
+
+    frame = df.copy()
+    frame.columns = [str(c).lstrip("\ufeff").strip().lower() for c in frame.columns]
+    frame.columns = [_LEGACY_COLUMN_MAP.get(c, c) for c in frame.columns]
+    if frame.columns.duplicated().any():
+        # Coalesce duplicates ("Views" + "views") so df[col] stays a Series.
+        deduped = {}
+        for col_name in dict.fromkeys(frame.columns):
+            matches = frame.loc[:, frame.columns == col_name]
+            if matches.shape[1] == 1:
+                deduped[col_name] = matches.iloc[:, 0]
+            else:
+                deduped[col_name] = matches.bfill(axis=1).iloc[:, 0]
+        frame = pd.DataFrame(deduped, index=frame.index)
+    return frame
+
+
+def _read_csv_cached(p: Path) -> pd.DataFrame:
+    try:
+        st = p.stat()
+    except OSError:
+        return _normalize_csv_header(pd.read_csv(p))
+    key = (str(p.resolve()), st.st_mtime)
+    with _CSV_CACHE_LOCK:
+        cached = _CSV_CACHE.get(key)
+        if cached is not None:
+            c_ns, c_size, c_df = cached
+            if c_ns == st.st_mtime_ns and c_size == st.st_size:
+                _CSV_CACHE.move_to_end(key)
+                return c_df.copy()
+    df = _normalize_csv_header(pd.read_csv(p))
+    with _CSV_CACHE_LOCK:
+        _CSV_CACHE[key] = (st.st_mtime_ns, st.st_size, df.copy())
+        _CSV_CACHE.move_to_end(key)
+        while len(_CSV_CACHE) > 128:
+            _CSV_CACHE.popitem(last=False)
+    return df
+
+
+def _cached_live_traffic(token: str) -> pd.DataFrame:
+    """Return live traffic for a token, cached for a short TTL.
+
+    Keyed by a full SHA-256 hex digest so the raw token never sits in a dict key.
+    Empty frames (outage/failure) are never cached so recovery is immediate.
+    """
+    key = hashlib.sha256(token.encode()).hexdigest()
+    now = _time.time()
+    with _TRAFFIC_CACHE_LOCK:
+        hit = _TRAFFIC_CACHE.get(key)
+        if hit is not None:
+            expires, frame = hit
+            if now < expires:
+                _TRAFFIC_CACHE.move_to_end(key)
+                return frame.copy()
+    frame = fetch_traffic_data(token)
+    if not frame.empty:
+        with _TRAFFIC_CACHE_LOCK:
+            _TRAFFIC_CACHE[key] = (now + _TRAFFIC_CACHE_TTL, frame.copy())
+            _TRAFFIC_CACHE.move_to_end(key)
+            while len(_TRAFFIC_CACHE) > _TRAFFIC_CACHE_MAX:
+                _TRAFFIC_CACHE.popitem(last=False)
+    return frame
+
+
+def _cached_deep_stats(token: str, repos_with_views: list[dict], top_n: int = 20) -> dict:
+    """Bounded TTL cache for fetch_deep_stats_for_top (~80 upstream calls)."""
+    top_names = tuple(
+        r["repository"]
+        for r in sorted(repos_with_views, key=lambda x: x.get("total_views", 0), reverse=True)[:top_n]
+    )
+    key = (hashlib.sha256(token.encode()).hexdigest(), top_names)
+    now = _time.time()
+    with _DEEP_STATS_CACHE_LOCK:
+        hit = _DEEP_STATS_CACHE.get(key)
+        if hit is not None:
+            expires, stats = hit
+            if now < expires:
+                _DEEP_STATS_CACHE.move_to_end(key)
+                return dict(stats)
+    stats = fetch_deep_stats_for_top(token, repos_with_views, top_n=top_n)
+    if stats:
+        with _DEEP_STATS_CACHE_LOCK:
+            _DEEP_STATS_CACHE[key] = (now + _DEEP_STATS_CACHE_TTL, dict(stats))
+            _DEEP_STATS_CACHE.move_to_end(key)
+            while len(_DEEP_STATS_CACHE) > _DEEP_STATS_CACHE_MAX:
+                _DEEP_STATS_CACHE.popitem(last=False)
+    return stats
 
 
 @app.post("/api/traffic")
-def get_traffic(token: str = Body("", embed=True)):
+def get_traffic(request: Request, token: str = Body("", embed=True)):
+    _require_browser_same_origin(request)
     # Serve traffic data — either from the historical CSV database or live from GitHub
     active_token = _get_token(token)
     if not active_token:
@@ -232,17 +516,34 @@ def get_traffic(token: str = Body("", embed=True)):
         if not data_dir_path.exists():
             logger.warning(f"Data directory '{data_dir}' does not exist.")
         else:
-            csv_files = list(data_dir_path.glob("traffic_*.csv"))
+            csv_files = sorted(
+                (
+                    f for f in data_dir_path.glob("traffic_*.csv")
+                    if _SYNC_CSV_RE.match(f.name)
+                ),
+                key=lambda f: (len(f.stem), f.name),
+            )
             if not csv_files:
                 logger.warning(f"No traffic_*.csv files found in '{data_dir}'.")
             for f in csv_files:
                 try:
-                    dfs.append(pd.read_csv(f))
+                    frame = _read_csv_cached(f)
                 except Exception as exc:
                     logger.warning(f"Skipping unreadable CSV '{f}': {exc}")
+                    continue
+                # A CSV without the required keys would blow up the whole
+                # dashboard with a KeyError. Skip it with a warning instead
+                # (AF2-LIB-02).
+                missing = [c for c in ("date", "repository") if c not in frame.columns]
+                if missing:
+                    logger.warning(
+                        f"Skipping CSV '{f}': missing required column(s) {missing}."
+                    )
+                    continue
+                dfs.append(frame)
 
     try:
-        live_df = fetch_traffic_data(active_token)
+        live_df = _cached_live_traffic(active_token)
     except Exception as exc:
         logger.warning(f"Failed to fetch live traffic: {exc}")
         live_df = pd.DataFrame()
@@ -251,13 +552,18 @@ def get_traffic(token: str = Body("", embed=True)):
         csv_df = pd.concat(dfs, ignore_index=True)
         if not live_df.empty:
             df = pd.concat([csv_df, live_df], ignore_index=True)
+            if "date" in df.columns and "repository" in df.columns:
+                # Coalesce overlapping (date, repository) rows so a partial live
+                # outage (NaN views when clones succeeded) never masks stored CSV data.
+                df = df.groupby(["date", "repository"], as_index=False, sort=False).last()
         else:
             df = csv_df
+            if "date" in df.columns and "repository" in df.columns:
+                df = df.drop_duplicates(subset=["date", "repository"], keep="last")
     else:
         df = live_df
-
-    if not df.empty:
-        df = df.drop_duplicates(subset=["date", "repository"], keep="last")
+        if not df.empty and "date" in df.columns and "repository" in df.columns:
+            df = df.drop_duplicates(subset=["date", "repository"], keep="last")
 
     # Normalize `is_private` to a real bool. CSV round-trip + pd.concat
     # widens the dtype to object (mix of bool, "True"/"False" strings, and
@@ -277,12 +583,18 @@ def get_traffic(token: str = Body("", embed=True)):
         and "views" in df.columns
     ):
         for repo_name, group in df.groupby("repository"):
-            repos_with_views.append({"repository": repo_name, "total_views": int(group["views"].sum())})
+            s = group["views"]
+            if not pd.api.types.is_numeric_dtype(s):
+                s = s.astype(str).str.replace(",", "", regex=False).str.strip()
+            views_total = int(
+                pd.to_numeric(s, errors="coerce").fillna(0).sum()
+            )
+            repos_with_views.append({"repository": repo_name, "total_views": views_total})
 
     # Fetch deep stats concurrently for the top 20 most-viewed repos
     deep_stats = {}
     if repos_with_views and active_token:
-        deep_stats = fetch_deep_stats_for_top(active_token, repos_with_views, top_n=20)
+        deep_stats = _cached_deep_stats(active_token, repos_with_views, top_n=20)
 
     payload = build_react_payload(df, deep_stats=deep_stats)
     return payload
@@ -291,8 +603,8 @@ def get_traffic(token: str = Body("", embed=True)):
 # Star history endpoint — sampled star timeline for the SPA chart.
 # Accepts the token via Authorization: Bearer header (PAT) so the chart
 # can hit its own backend without exposing the token to the cloud.
-# Falls back to GITLYTICS_TOKEN env so the local widget still works
-# for users who stored their PAT in env instead of the LoginView.
+# There is no environment-token fallback: anyone who can reach this endpoint
+# must supply their own token or the operator's PAT quota is exposed.
 @app.get("/api/star-history")
 def get_star_history_endpoint(
     owner: str,
@@ -300,17 +612,14 @@ def get_star_history_endpoint(
     response: Response,
     authorization: str | None = Header(default=None),
 ):
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authorization bearer token required.")
     # If an Authorization header is present but malformed (wrong scheme, empty
-    # token, etc.), error out rather than silently falling back to the server's
-    # own GITLYTICS_TOKEN — anyone who can reach this endpoint must not be able
-    # to burn the operator's PAT quota with a spoofed header.
-    if authorization:
-        parts = authorization.strip().split(None, 1)
-        if len(parts) != 2 or parts[0].lower() != "bearer" or not parts[1].strip():
-            raise HTTPException(status_code=401, detail="Malformed Authorization header.")
-        token = parts[1].strip()
-    else:
-        token = os.environ.get("GITLYTICS_TOKEN")
+    # token, etc.), error out rather than silently falling back to a server token.
+    parts = authorization.strip().split(None, 1)
+    if len(parts) != 2 or parts[0].lower() != "bearer" or not parts[1].strip():
+        raise HTTPException(status_code=401, detail="Malformed Authorization header.")
+    token = parts[1].strip()
     try:
         points = fetch_star_history(owner, repo, token)
     except GitHubRateLimitError as exc:
@@ -319,15 +628,15 @@ def get_star_history_endpoint(
     except StargazersRestrictedError as exc:
         raise HTTPException(status_code=403, detail=str(exc))
     except StarHistoryFetchError as exc:
-        # Validation / metadata / network failures are caller errors — 400 makes more
-        # sense than 429 here so the SPA can distinguish "GitHub is throttling us"
-        # from "your request was malformed".
+        msg = str(exc).lower()
+        if "401" in msg or "unauthorized" in msg:
+            raise HTTPException(status_code=401, detail=str(exc))
         raise HTTPException(status_code=400, detail=str(exc))
     except ValueError as exc:
         # fetch_star_history raises ValueError for empty owner / repo / trailing slash;
         # returning 400 is more honest than letting Starlette surface a 500.
         raise HTTPException(status_code=400, detail=str(exc))
-    response.headers["Cache-Control"] = "public, max-age=86400"
+    response.headers["Cache-Control"] = "private, no-cache"
     return {"owner": owner, "repo": repo, "points": points}
 
 
@@ -337,43 +646,16 @@ def upload_csv(
     file: UploadFile = File(...),
     _: None = Depends(_require_upload_access),
 ):
+    # Uploads are previews: they are parsed for this response and discarded.
+    # Persisting them under a ``traffic_*.csv`` name made every upload a
+    # permanent part of every future /api/traffic response (unbounded growth,
+    # stale/duplicate rows, schema widening). Use a system temp file so the
+    # 5 MB cap still applies without buffering the whole body in memory.
+    tmp_path = None
     try:
-        data_dir = os.environ.get("GITLYTICS_DATA_DIR")
-        if data_dir:
-            data_dir_path = Path(data_dir)
-            data_dir_path.mkdir(parents=True, exist_ok=True)
-            # Stream the upload to disk so we don't buffer the whole file in
-            # memory. Enforce the size cap on the way in.
-            dest = data_dir_path / f"traffic_uploaded_{uuid.uuid4().hex}.csv"
-            total = 0
-            with open(dest, "wb") as out:
-                while True:
-                    chunk = file.file.read(1024 * 1024)
-                    if not chunk:
-                        break
-                    total += len(chunk)
-                    if total > _MAX_UPLOAD_BYTES:
-                        out.close()
-                        try:
-                            dest.unlink()
-                        except OSError:
-                            pass
-                        raise HTTPException(
-                            status_code=413,
-                            detail=f"CSV too large. Maximum size is {_MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
-                        )
-                    out.write(chunk)
-            file.file.seek(0)
-            upload_stream = file.file
-        else:
-            # No data_dir configured — the common case for `gitlytics dashboard`
-            # without persistence. The 25 MB cap MUST still be enforced here,
-            # otherwise an unbounded upload is fully buffered into memory before
-            # pd.read_csv runs (DoS / OOM). Read into a bounded BytesIO so the
-            # size check happens before any parsing.
-            import io
-            buf = io.BytesIO()
-            total = 0
+        fd, tmp_path = tempfile.mkstemp(prefix="gitlytics_upload_", suffix=".csv")
+        total = 0
+        with os.fdopen(fd, "wb") as out:
             while True:
                 chunk = file.file.read(1024 * 1024)
                 if not chunk:
@@ -384,18 +666,21 @@ def upload_csv(
                         status_code=413,
                         detail=f"CSV too large. Maximum size is {_MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
                     )
-                buf.write(chunk)
-            buf.seek(0)
-            upload_stream = buf
-        df = process_uploaded_csv(upload_stream)
+                out.write(chunk)
+        df = process_uploaded_csv(tmp_path)
         df = df.replace([float('inf'), float('-inf')], None).where(pd.notnull(df), None)
-        payload = build_react_payload(df, deep_stats=None)
-        return payload
+        return build_react_payload(df, deep_stats=None)
     except HTTPException:
         raise
     except Exception as e:
         logger.warning("CSV upload failed: %s", e)
         raise HTTPException(status_code=400, detail="Failed to process CSV upload.")
+    finally:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
 
 
 # Static file serving
@@ -420,7 +705,7 @@ def serve_index():
 def serve_spa_fallback(full_path: str):
     """SPA catch-all — returns index.html so React Router handles navigation."""
     # Any unhandled /api/* path is a real 404, not a SPA route.
-    if full_path.startswith("api/") or full_path.startswith("assets/"):
+    if full_path in ("api", "assets") or full_path.startswith(("api/", "assets/")):
         return JSONResponse(status_code=404, content={"error": "Not found."})
 
     # Confine the resolved path to frontend_dir — otherwise a request like

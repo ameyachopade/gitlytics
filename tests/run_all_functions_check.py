@@ -19,10 +19,26 @@ if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 # Ensure src/ is on sys.path
-sys.path.insert(0, str(Path(__file__).parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 import pandas as pd
 import requests
+
+# ── Offline tripwire (AF2-LIB-06) ───────────────────────────────────────────
+# This harness is documented as OFFLINE. Patch the single choke point every
+# `requests` call funnels through so an unmocked request fails loudly instead
+# of silently hitting api.github.com.
+_real_send = requests.Session.send
+
+
+def _blocked_send(self, request, **kwargs):
+    raise AssertionError(
+        f"OFFLINE VIOLATION: an unmocked HTTP request was attempted: "
+        f"{getattr(request, 'url', request)}"
+    )
+
+
+requests.Session.send = _blocked_send
 
 # Modules to test
 import gitlytics
@@ -113,7 +129,7 @@ def test_make_headers():
 run_test("gitlytics.core", "make_headers", test_make_headers)
 
 def test_validate_token():
-    with patch("requests.get") as mock_g:
+    with patch("gitlytics.core._http_get") as mock_g:
         mock_g.return_value.status_code = 200
         mock_g.return_value.json.return_value = {"login": "ameyachopade"}
         ok, user = gitlytics.core.validate_token("tok123")
@@ -121,7 +137,7 @@ def test_validate_token():
 run_test("gitlytics.core", "validate_token", test_validate_token)
 
 def test_get_user_profile():
-    with patch("requests.get") as mock_g:
+    with patch("gitlytics.core._http_get") as mock_g:
         mock_g.return_value.status_code = 200
         mock_g.return_value.json.return_value = {"login": "ameya", "name": "Ameya Chopade", "followers": 10}
         p = gitlytics.core.get_user_profile("tok123")
@@ -138,7 +154,7 @@ def test_validate_github_username():
 run_test("gitlytics.core", "validate_github_username", test_validate_github_username)
 
 def test_get_public_user():
-    with patch("requests.get") as mock_g:
+    with patch("gitlytics.core._http_get") as mock_g:
         mock_g.return_value.status_code = 200
         mock_g.return_value.json.return_value = {"login": "torvalds", "public_repos": 12}
         u = gitlytics.core.get_public_user("torvalds")
@@ -152,7 +168,7 @@ def test_normalise_repo():
 run_test("gitlytics.core", "_normalise_repo", test_normalise_repo)
 
 def test_fetch_public_repos_by_updated():
-    with patch("requests.get") as mock_g:
+    with patch("gitlytics.core._http_get") as mock_g:
         mock_g.return_value.status_code = 200
         mock_g.return_value.json.return_value = [{"name": "repoA", "full_name": "u/repoA"}]
         repos = gitlytics.core._fetch_public_repos_by_updated("user", 10)
@@ -160,7 +176,7 @@ def test_fetch_public_repos_by_updated():
 run_test("gitlytics.core", "_fetch_public_repos_by_updated", test_fetch_public_repos_by_updated)
 
 def test_fetch_public_repos_by_stars():
-    with patch("requests.get") as mock_g:
+    with patch("gitlytics.core._http_get") as mock_g:
         mock_g.return_value.status_code = 200
         mock_g.return_value.json.return_value = {"items": [{"name": "repoB", "full_name": "u/repoB"}]}
         repos = gitlytics.core._fetch_public_repos_by_stars("user", 10)
@@ -176,7 +192,7 @@ def test_get_public_repos():
 run_test("gitlytics.core", "get_public_repos", test_get_public_repos)
 
 def test_safe_get():
-    with patch("requests.get") as mock_g:
+    with patch("gitlytics.core._http_get") as mock_g:
         mock_g.return_value.status_code = 200
         mock_g.return_value.json.return_value = {"key": "val"}
         data, status = gitlytics.core._safe_get("http://fake", {})
@@ -184,7 +200,7 @@ def test_safe_get():
 run_test("gitlytics.core", "_safe_get", test_safe_get)
 
 def test_count_via_link_header():
-    with patch("requests.get") as mock_g:
+    with patch("gitlytics.core._http_get") as mock_g:
         mock_g.return_value.status_code = 200
         mock_g.return_value.headers = {"Link": '<https://api.github.com?page=42>; rel="last"'}
         count = gitlytics.core._count_via_link_header("http://fake", {})
@@ -197,7 +213,7 @@ def test_get_deep_repo_stats():
         ({"files": {"readme": {"url": "x"}}}, 200),  # community profile
     ]):
         with patch("gitlytics.core._count_via_link_header", return_value=3):
-            with patch("requests.get") as mock_rel:
+            with patch("gitlytics.core._http_get") as mock_rel:
                 mock_rel.return_value.status_code = 200
                 mock_rel.return_value.headers = {}
                 mock_rel.return_value.json.return_value = [{"published_at": "2026-01-01"}]
@@ -239,26 +255,29 @@ def test_fetch_star_history():
 run_test("gitlytics.core", "fetch_star_history", test_fetch_star_history)
 
 def test_get_repo_traffic():
+    # `_count_via_link_header` issues a real HTTP request — it must be mocked
+    # so this "offline" harness never touches the network (AF2-LIB-06).
     with patch("gitlytics.core._safe_get", side_effect=[
         ({"views": []}, 200),
         ({"clones": []}, 200),
         ([], 200),
         ([], 200),
     ]):
-        tr = gitlytics.core.get_repo_traffic("tok", "u/r")
-        assert "views" in tr and "clones" in tr
+        with patch("gitlytics.core._count_via_link_header", return_value=0):
+            tr = gitlytics.core.get_repo_traffic("tok", "u/r")
+            assert "views" in tr and "clones" in tr
 run_test("gitlytics.core", "get_repo_traffic", test_get_repo_traffic)
 
 def test_pad_traffic_data():
     padded = gitlytics.core.pad_traffic_data({"views": {"views": []}, "clones": {"clones": []}})
-    assert len(padded) == 14
+    assert len(padded) == 15
 run_test("gitlytics.core", "pad_traffic_data", test_pad_traffic_data)
 
 def test_build_tidy_rows():
     repo = {"full_name": "u/r", "private": False, "stargazers_count": 10, "forks_count": 2}
     traffic = {"views": {"views": []}, "clones": {"clones": []}, "referrers": [], "paths": []}
     rows = gitlytics.core.build_tidy_rows(repo, traffic)
-    assert len(rows) == 14
+    assert len(rows) == 15
     assert rows[0]["repository"] == "u/r"
 run_test("gitlytics.core", "build_tidy_rows", test_build_tidy_rows)
 
@@ -267,7 +286,7 @@ def test_fetch_traffic_data():
         with patch("gitlytics.core.get_repo_traffic", return_value={"views": {}, "clones": {}}):
             df = gitlytics.core.fetch_traffic_data("tok", repo_names=["u/r"])
             assert isinstance(df, pd.DataFrame)
-            assert len(df) == 14
+            assert len(df) == 15
 run_test("gitlytics.core", "fetch_traffic_data", test_fetch_traffic_data)
 
 def test_print_repo_table():
@@ -420,13 +439,13 @@ client = TestClient(gitlytics.api.app)
 
 def test_require_upload_access():
     mock_req = MagicMock()
-    mock_req.client.host = "127.0.0.1"
+    mock_req.headers = {"origin": "http://127.0.0.1:8000", "host": "127.0.0.1:8000"}
     gitlytics.api._require_upload_access(mock_req)  # should not raise
 run_test("gitlytics.api", "_require_upload_access", test_require_upload_access)
 
 def test_get_token():
     assert gitlytics.api._get_token(" explicit ") == "explicit"
-    with patch.dict(os.environ, {"GITLYTICS_TOKEN": "env_tok"}):
+    with patch.dict(os.environ, {"GITLYTICS_TOKEN": "env_tok", "GITLYTICS_ALLOW_ENV_TOKEN": "1"}):
         assert gitlytics.api._get_token("") == "env_tok"
 run_test("gitlytics.api", "_get_token", test_get_token)
 
@@ -469,7 +488,7 @@ run_test("gitlytics.api", "get_traffic", test_get_traffic)
 
 def test_get_star_history_endpoint():
     with patch("gitlytics.api.fetch_star_history", return_value=[{"date": "2026-01-01", "total": 5}]):
-        r = client.get("/api/star-history?owner=u&repo=r")
+        r = client.get("/api/star-history?owner=u&repo=r", headers={"authorization": "Bearer tok"})
         assert r.status_code == 200
         assert r.json()["points"] == [{"date": "2026-01-01", "total": 5}]
 run_test("gitlytics.api", "get_star_history_endpoint", test_get_star_history_endpoint)
@@ -479,7 +498,7 @@ def test_upload_csv():
     r = client.post(
         "/api/upload-csv",
         files={"file": ("traffic.csv", csv_bytes, "text/csv")},
-        headers={"host": "127.0.0.1"}
+        headers={"host": "127.0.0.1", "origin": "http://127.0.0.1"},
     )
     assert r.status_code == 200
 run_test("gitlytics.api", "upload_csv", test_upload_csv)

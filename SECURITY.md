@@ -6,14 +6,25 @@ We actively support the latest release. Please update to the latest version to e
 
 | Version | Supported |
 | ------- | --------- |
-| 0.4.x   | :white_check_mark: Yes |
-| < 0.4.0 | :x: No |
+| 0.7.x   | :white_check_mark: Yes |
+| < 0.7.0 | :x: No |
 
 ## Reporting a Vulnerability
 
 If you discover a security vulnerability within Gitlytics, please report it privately to avoid exposing users to risk before a fix is available.
 
-**Do not open a public GitHub issue for security vulnerabilities.**
+**Do not open a public GitHub issue for security vulnerabilities.** Use the private **Private Vulnerability Reporting** feature (see below).
+
+### Security Headers
+
+The local dashboard (`gitlytics dashboard`) and the hosted dashboard serve the same
+bundle, so they ship the same protections. The packaged
+`src/gitlytics/static/_headers` file carries the `Content-Security-Policy`
+(hash-pinned `script-src`, `frame-ancestors 'none'`, `object-src 'none'`) and the
+local FastAPI server applies it to every response it serves.
+
+If you self-host the bundle on a CDN (Cloudflare Pages / Netlify), that host
+reads `_headers` directly — the same policy applies either way.
 
 ### How to Report
 

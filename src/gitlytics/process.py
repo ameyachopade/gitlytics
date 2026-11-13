@@ -13,13 +13,17 @@ logger = logging.getLogger(__name__)
 
 
 def _is_nullish(val) -> bool:
-    # True for None, NaN, empty string, and the literal "nan"/"None" strings.
+    # True for None, NaN, pd.NA, pd.NaT, empty string, and literal nulls.
     if val is None:
         return True
-    if isinstance(val, float) and np.isnan(val):
-        return True
+    if not isinstance(val, (list, tuple, dict, set)):
+        try:
+            if pd.isna(val):
+                return True
+        except (TypeError, ValueError):
+            pass
     s = str(val).strip().lower()
-    return s in ("", "nan", "none", "null")
+    return s in ("", "nan", "none", "null", "<na>", "nat")
 
 
 def _to_bool(val) -> bool:
@@ -32,9 +36,13 @@ def _to_bool(val) -> bool:
     """
     if isinstance(val, bool):
         return val
+    if isinstance(val, np.bool_):
+        # numpy.bool_ is not a subclass of Python bool; without this check a
+        # private repo can be misclassified as public in export filtering.
+        return bool(val)
     if val is None:
         return False
-    if isinstance(val, (int, float)):
+    if isinstance(val, (int, float, np.integer, np.floating)):
         # Catch NaN explicitly so a missing-cell numeric doesn't propagate.
         try:
             if np.isnan(val):
@@ -53,10 +61,13 @@ def build_json_payload(df: pd.DataFrame, return_format: str = "timeseries", expo
         return {"account_totals": {}, "repositories": {}}
 
     if export_public_only and "is_private" in df.columns:
-        df = df[~df["is_private"]]
+        is_priv = df["is_private"].map(_to_bool).astype(bool)
+        df = df[~is_priv]
 
     if df.empty:
         return {"account_totals": {}, "repositories": {}}
+
+    df = _coerce_numeric_columns(df.copy())
 
     account_views = 0
     account_clones = 0
@@ -70,10 +81,10 @@ def build_json_payload(df: pd.DataFrame, return_format: str = "timeseries", expo
     for repo, group in df.groupby("repository"):
         group = group.sort_values("date")
 
-        r_views = _safe_int(group["views"].sum()) if "views" in group.columns else 0
-        r_clones = _safe_int(group["clones"].sum()) if "clones" in group.columns else 0
-        r_unique_v = _safe_int(group["unique_visitors"].sum()) if "unique_visitors" in group.columns else 0
-        r_unique_c = _safe_int(group["unique_cloners"].sum()) if "unique_cloners" in group.columns else 0
+        r_views = _sum_metric(group, "views")
+        r_clones = _sum_metric(group, "clones")
+        r_unique_v = _sum_metric(group, "unique_visitors")
+        r_unique_c = _sum_metric(group, "unique_cloners")
         r_stars = _safe_int(group["stars"].dropna().iloc[-1]) if "stars" in group.columns and not group["stars"].dropna().empty else 0
         r_forks = _safe_int(group["forks"].dropna().iloc[-1]) if "forks" in group.columns and not group["forks"].dropna().empty else 0
         r_is_private = _to_bool(group["is_private"].dropna().iloc[-1]) if "is_private" in group.columns and not group["is_private"].dropna().empty else False
@@ -100,13 +111,13 @@ def build_json_payload(df: pd.DataFrame, return_format: str = "timeseries", expo
             }
         else:
             timeseries = []
-            for _, row in group.iterrows():
+            for record in group.to_dict("records"):
                 timeseries.append({
-                    "date": str(row["date"]),
-                    "views": int(row.get("views", 0) or 0),
-                    "unique_visitors": int(row.get("unique_visitors", 0) or 0),
-                    "clones": int(row.get("clones", 0) or 0),
-                    "unique_cloners": int(row.get("unique_cloners", 0) or 0)
+                    "date": str(record.get("date", "")),
+                    "views": _safe_int(record.get("views", 0)),
+                    "unique_visitors": _safe_int(record.get("unique_visitors", 0)),
+                    "clones": _safe_int(record.get("clones", 0)),
+                    "unique_cloners": _safe_int(record.get("unique_cloners", 0))
                 })
 
             repos_dict[repo] = {
@@ -154,20 +165,23 @@ def process_uploaded_csv(uploaded_file) -> pd.DataFrame:
     # Strip BOMs and lower-case every header up front so any common title-case
     # or mixed-case export (e.g. hand-edited CSVs, older versions, third-party tools)
     # is accepted.
-    raw_df.columns = [str(c).lstrip("﻿").strip() for c in raw_df.columns]
-    rename_lower = {c: c.lower() for c in raw_df.columns}
-    raw_df = raw_df.rename(columns=rename_lower)
+    raw_df.columns = [str(c).lstrip("\ufeff").strip().lower() for c in raw_df.columns]
 
     # Map legacy display names (e.g. "Total Views", "Unique Visitors") to the
     # canonical schema columns that build_react_payload / build_json_payload expect.
-    # Without this, multi-word legacy headers like "total views" stay as-is after
-    # lower-casing and downstream code silently returns 0 for those metrics.
-    legacy_rename = {}
-    for legacy, canonical in _LEGACY_COLUMN_MAP.items():
-        if legacy in raw_df.columns and canonical not in raw_df.columns:
-            legacy_rename[legacy] = canonical
-    if legacy_rename:
-        raw_df = raw_df.rename(columns=legacy_rename)
+    raw_df.columns = [_LEGACY_COLUMN_MAP.get(c, c) for c in raw_df.columns]
+
+    # Coalesce duplicate column names caused by case/alias collisions ("Views" +
+    # "views") so df[col] is always a Series, never a 2-column DataFrame (AF-LIB-11).
+    if raw_df.columns.duplicated().any():
+        deduped_cols = {}
+        for col_name in dict.fromkeys(raw_df.columns):
+            matches = raw_df.loc[:, raw_df.columns == col_name]
+            if matches.shape[1] == 1:
+                deduped_cols[col_name] = matches.iloc[:, 0]
+            else:
+                deduped_cols[col_name] = matches.bfill(axis=1).iloc[:, 0]
+        raw_df = pd.DataFrame(deduped_cols, index=raw_df.index)
 
     if "repository" not in raw_df.columns:
         raise ValueError("Invalid CSV format: missing 'repository' column")
@@ -181,6 +195,10 @@ def process_uploaded_csv(uploaded_file) -> pd.DataFrame:
     # this here keeps every downstream consumer safe.
     if "is_private" in raw_df.columns:
         raw_df["is_private"] = raw_df["is_private"].map(_to_bool).astype(bool)
+
+    # Normalise numeric metric columns so downstream sums add numbers rather
+    # than concatenating object-dtype strings ("10" + "5" -> "105").
+    raw_df = _coerce_numeric_columns(raw_df)
     return raw_df
 
 
@@ -201,8 +219,10 @@ def _safe_int(val, fallback=0) -> int:
     if _is_nullish(val):
         return fallback
     try:
-        return int(float(val))
-    except (TypeError, ValueError):
+        # Tolerate thousands separators and surrounding whitespace, which are
+        # common in hand-edited/third-party CSV exports ("1,234" -> 1234).
+        return int(float(str(val).replace(",", "").strip()))
+    except (TypeError, ValueError, OverflowError):
         return fallback
 
 
@@ -212,6 +232,35 @@ def _safe_str(val, fallback="") -> str:
     return str(val)
 
 
+# Metric columns that must always be numeric. A single string cell in an
+# object-dtype column makes ``.sum()`` concatenate ("10" + "5" -> "105"),
+# silently inflating totals, so coerce once before any aggregation.
+_NUMERIC_COLUMNS = (
+    "views", "unique_visitors", "clones", "unique_cloners",
+    "stars", "forks", "watchers_count", "open_issues_count",
+)
+
+
+def _coerce_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
+    for col in _NUMERIC_COLUMNS:
+        if col in df.columns:
+            series = df[col]
+            if not pd.api.types.is_numeric_dtype(series):
+                # Hand-edited/third-party exports use thousands separators
+                # ("1,234"). Strip them before coercion so they are parsed as
+                # numbers instead of collapsing to NaN -> 0. This also covers
+                # pandas' dedicated string dtype, not just object.
+                series = series.astype(str).str.replace(",", "", regex=False).str.strip()
+            df[col] = pd.to_numeric(series, errors="coerce").fillna(0)
+    return df
+
+
+def _sum_metric(group: pd.DataFrame, col: str) -> int:
+    if col not in group.columns:
+        return 0
+    return _safe_int(pd.to_numeric(group[col], errors="coerce").fillna(0).sum())
+
+
 def build_react_payload(df: pd.DataFrame, deep_stats: dict = None) -> list:
     """
     Transforms the Tidy DataFrame into the RepoTraffic array the React dashboard expects.
@@ -219,6 +268,15 @@ def build_react_payload(df: pd.DataFrame, deep_stats: dict = None) -> list:
     """
     if df.empty:
         return []
+
+    # A frame without the grouping key would raise KeyError and take the
+    # whole dashboard down with an HTTP 500. Return an empty payload instead
+    # (AF2-LIB-02).
+    if "repository" not in df.columns:
+        logger.warning("Cannot build payload: the frame has no 'repository' column.")
+        return []
+
+    df = _coerce_numeric_columns(df.copy())
 
     fetched_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     repos = []
@@ -232,10 +290,10 @@ def build_react_payload(df: pd.DataFrame, deep_stats: dict = None) -> list:
     for repo, group in df.groupby("repository"):
         group = group.sort_values("date")
 
-        r_views = _safe_int(group["views"].sum()) if "views" in group.columns else 0
-        r_clones = _safe_int(group["clones"].sum()) if "clones" in group.columns else 0
-        r_unique_v = _safe_int(group["unique_visitors"].sum()) if "unique_visitors" in group.columns else 0
-        r_unique_c = _safe_int(group["unique_cloners"].sum()) if "unique_cloners" in group.columns else 0
+        r_views = _sum_metric(group, "views")
+        r_clones = _sum_metric(group, "clones")
+        r_unique_v = _sum_metric(group, "unique_visitors")
+        r_unique_c = _sum_metric(group, "unique_cloners")
         r_stars = _safe_int(group["stars"].dropna().iloc[-1]) if "stars" in group.columns and not group["stars"].dropna().empty else 0
         r_forks = _safe_int(group["forks"].dropna().iloc[-1]) if "forks" in group.columns and not group["forks"].dropna().empty else 0
         r_is_private = _to_bool(group["is_private"].dropna().iloc[-1]) if "is_private" in group.columns and not group["is_private"].dropna().empty else False
@@ -261,21 +319,29 @@ def build_react_payload(df: pd.DataFrame, deep_stats: dict = None) -> list:
         # Daily arrays for charts
         daily_views = []
         daily_clones = []
-        for _, row in group.iterrows():
-            date_str = str(row["date"])
+        for record in group.to_dict("records"):
+            date_str = str(record.get("date", ""))
             daily_views.append({
                 "timestamp": date_str,
-                "count": _safe_int(row.get("views", 0)),
-                "uniques": _safe_int(row.get("unique_visitors", 0))
+                "count": _safe_int(record.get("views", 0)),
+                "uniques": _safe_int(record.get("unique_visitors", 0))
             })
             daily_clones.append({
                 "timestamp": date_str,
-                "count": _safe_int(row.get("clones", 0)),
-                "uniques": _safe_int(row.get("unique_cloners", 0))
+                "count": _safe_int(record.get("clones", 0)),
+                "uniques": _safe_int(record.get("unique_cloners", 0))
             })
 
-        raw_refs_val = group["_raw_referrers"].iloc[-1] if "_raw_referrers" in group.columns else None
-        raw_paths_val = group["_raw_paths"].iloc[-1] if "_raw_paths" in group.columns else None
+        raw_refs_val = (
+            group["_raw_referrers"].dropna().iloc[-1]
+            if "_raw_referrers" in group.columns and not group["_raw_referrers"].dropna().empty
+            else None
+        )
+        raw_paths_val = (
+            group["_raw_paths"].dropna().iloc[-1]
+            if "_raw_paths" in group.columns and not group["_raw_paths"].dropna().empty
+            else None
+        )
         full_refs = _parse_raw(raw_refs_val)
         full_paths = _parse_raw(raw_paths_val)
 

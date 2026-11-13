@@ -1,14 +1,21 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+# setuptools >= 77 is required for the PEP 639 `license` / `license-files`
+# project-table keys (AF2-LIB-11).
+requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "gitlytics"
-version = "0.7.0"
+version = "0.7.2"
 description = "Monitor and automate your GitHub repository traffic analytics."
 readme = "README.md"
-requires-python = ">=3.9"
-license = { text = "Apache-2.0" }
+requires-python = ">=3.11"
+# PEP 639 (PEP 621): declare a machine-readable SPDX expression instead of
+# inlining the whole licence text into the wheel METADATA. The licence is
+# Apache-2.0 with the Commons Clause, which has no upstream SPDX id, so the
+# project uses a LicenseRef (AF2-LIB-11).
+license = "LicenseRef-Apache-2.0-with-Commons-Clause"
+license-files = ["LICENSE"]
 authors = [
     { name = "Ameya Chopade", email = "ameyaccod171@gmail.com" }
 ]
@@ -32,7 +39,9 @@ keywords = [
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Operating System :: OS Independent",
 ]
 
@@ -65,15 +74,27 @@ gitlytics = "gitlytics.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["gitlytics*"]
+# `gitlytics*` also matches `gitlytics.__pycache__`, which setuptools would
+# otherwise ship as a namespace package with host-specific `.pyc` files.
+exclude = ["gitlytics.__pycache__", "gitlytics.__pycache__.*", "gitlytics.*.__pycache__"]
 
 [tool.setuptools.package-data]
 "gitlytics" = ["static/**/*", "static/*"]
 
 [tool.pytest.ini_options]
 # Only collect files that match the offline test naming convention.
-# live_*.py scripts are excluded — they need a real GitHub token.
+# live_*.py scripts are excluded - they need a real GitHub token.
 pythonpath = ["src"]
 testpaths = ["tests"]
 python_files  = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+# pytest-asyncio >= 1.x warns when the event-loop scope for async fixtures is
+# left unset, and the default will change in a future release. Pin it
+# explicitly so the suite is deterministic and warning-free.
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    "error::DeprecationWarning",
+    "error::PendingDeprecationWarning",
+    "default::starlette.exceptions.StarletteDeprecationWarning",
+]

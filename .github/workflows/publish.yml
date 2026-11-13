@@ -4,10 +4,43 @@ on:
   release:
     types: [published]
 
+# Two releases created close together must not race on the same upload.
+concurrency:
+  group: pypi-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
 jobs:
+  test:
+    name: Test the released commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Set up Python
+        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install package and test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev,dashboard]"
+
+      - name: Run tests
+        run: python -m pytest -q
+
   pypi-publish:
     name: Build and publish to PyPI
+    needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: pypi
 
     env:
@@ -20,22 +53,88 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "26.13.0"
+
+      - name: Require an immutable frontend ref
+        env:
+          FRONTEND_REF: ${{ vars.FRONTEND_REF }}
+        run: |
+          if [ -z "$FRONTEND_REF" ]; then
+            echo "::error::Set the FRONTEND_REF repository variable to a tag or commit SHA before publishing."
+            exit 1
+          fi
+          if ! echo "$FRONTEND_REF" | grep -Eq '^([0-9a-f]{40}|v[0-9]+\.[0-9]+\.[0-9]+.*)$'; then
+            echo "::error::FRONTEND_REF ($FRONTEND_REF) must be a release tag (vX.Y.Z) or 40-char commit SHA."
+            exit 1
+          fi
+
+      # The frontend repo is private, so the default `${{ github.token }}`
+      # (scoped to THIS repository) cannot read it. A dedicated token with
+      # `contents: read` on ameyachopade/gitlytics-frontend is required.
+      # Fail early with an actionable message instead of a 404 from checkout.
+      - name: Require the frontend repo token
+        env:
+          FRONTEND_REPO_TOKEN: ${{ secrets.FRONTEND_REPO_TOKEN }}
+        run: |
+          if [ -z "$FRONTEND_REPO_TOKEN" ]; then
+            echo "::error::Secret FRONTEND_REPO_TOKEN is not set. Add a token with 'contents: read' on ameyachopade/gitlytics-frontend (Settings > Secrets and variables > Actions)."
+            exit 1
+          fi
+
+      - name: Checkout frontend
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: ameyachopade/gitlytics-frontend
+          ref: ${{ vars.FRONTEND_REF }}
+          path: frontend
+          token: ${{ secrets.FRONTEND_REPO_TOKEN }}
+          persist-credentials: false
+
+      - name: Build frontend and sync static assets
+        run: |
+          cd frontend
+          npm ci --legacy-peer-deps
+          npm run build:local
+          cd ..
+          rm -rf src/gitlytics/static
+          mkdir -p src/gitlytics/static
+          cp -r frontend/dist/* src/gitlytics/static/
 
       - name: Set up Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
         with:
           python-version: "3.12"
 
       - name: Install build dependencies
-        run: pip install build
+        run: |
+          python -m pip install --no-cache-dir build==1.2.2.post1
+          python -m pip install -e ".[dev,dashboard]"
 
-      - name: Build package
-        run: python -m build
+      - name: Build and verify package
+        run: |
+          rm -rf build dist
+          python -m build
+          python - <<'PY'
+          import zipfile, pathlib
+          whl = next(pathlib.Path("dist").glob("*.whl"))
+          with zipfile.ZipFile(whl) as zf:
+              entries = [n for n in zf.namelist() if n.startswith("gitlytics/static/assets/index-") and n.endswith(".js")]
+              assert entries, "missing entry JS bundle in wheel"
+              bundle = zf.read(entries[0]).decode("utf-8", errors="replace")
+              assert "http://localhost:8000" not in bundle, "wheel must not bake localhost:8000"
+              assert "VITE_BACKEND_URL must be set" not in bundle, "wheel must be built in local mode (IS_CLOUD dead-code eliminated)"
+          PY
+          python -m pytest -q
 
       - name: Publish package
-        # Fix #23: Pin to a specific immutable tag instead of the mutable @release/v1 branch.
-        uses: pypa/gh-action-pypi-publish@v1.14.3
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086
         with:
-          attestations: false
+          attestations: true
           verbose: true

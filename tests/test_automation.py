@@ -8,7 +8,7 @@ import os
 import pytest
 from unittest.mock import patch, MagicMock
 import pandas as pd
-from gitlytics.automation import run_sync_cycle, get_csv_path, _merge_schema
+from gitlytics.automation import run_sync_cycle, get_csv_path, _merge_schema, run_sync, TokenExpiredError
 
 
 # ── Helper — build a minimal tidy-data DataFrame ─────────────────────────────
@@ -225,3 +225,84 @@ class TestRunSyncCycle:
 
         rows = list(csv.DictReader(open(csv_file, "r", encoding="utf-8")))
         assert len(rows) == 2  # both rows preserved
+
+
+# -- LIB-01/LIB-06 regression: zero rows and uploads must not poison exports ---
+
+class TestExportSafety:
+    @patch("gitlytics.automation.fetch_traffic_data")
+    def test_zero_rows_do_not_overwrite_existing_history(self, mock_fetch, tmp_path):
+        mock_fetch.return_value = _make_df(views=9, clones=4)
+        run_sync_cycle("token", data_dir=str(tmp_path))
+        csv_file = next(tmp_path.glob("traffic_*.csv"))
+
+        # A failed/partial refresh that yields explicit zeros must not erase data.
+        mock_fetch.return_value = _make_df(views=0, clones=0)
+        run_sync_cycle("token", data_dir=str(tmp_path))
+
+        with open(csv_file, "r", encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
+        assert rows[0]["views"] == "9"
+        assert rows[0]["clones"] == "4"
+
+    def test_uploaded_csv_is_excluded_from_export(self, tmp_path):
+        from gitlytics.automation import export_json_database
+        real = tmp_path / "traffic_2026-11.csv"
+        real.write_text("date,repository,is_private,views\n2026-11-01,user/real,False,5\n", encoding="utf-8")
+        uploaded = tmp_path / "traffic_uploaded_deadbeef.csv"
+        uploaded.write_text("date,repository,is_private,views\n2026-11-01,attacker/poison,False,999\n", encoding="utf-8")
+        export_file = tmp_path / "out.json"
+        export_json_database(str(tmp_path), str(export_file), export_public_only=True)
+
+        import json
+        payload = json.loads(export_file.read_text(encoding="utf-8"))
+        names = [repo["repository"] for repo in payload]
+        assert names == ["user/real"]
+
+    def test_concurrent_merges_do_not_lose_rows(self, tmp_path):
+        import threading
+        from gitlytics.automation import _write_df_to_csv
+        csv_path = str(tmp_path / "traffic_2026-11.csv")
+        errors = []
+
+        def worker(repo):
+            try:
+                _write_df_to_csv(_make_df(repo=repo), csv_path)
+            except Exception as exc:  # pragma: no cover - failure path
+                errors.append(exc)
+
+        threads = [threading.Thread(target=worker, args=(f"user/repo{i}",)) for i in range(6)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+        assert not errors
+        with open(csv_path, "r", encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
+        assert len(rows) == 6
+        assert {row["repository"] for row in rows} == {f"user/repo{i}" for i in range(6)}
+
+
+# -- LIB-10 regression: library code raises instead of exiting the process ---
+
+class TestRunSyncTokenExpiry:
+    @patch("gitlytics.automation._interruptible_sleep")
+    @patch("gitlytics.automation.validate_token")
+    def test_auth_failure_raises_token_expired_error(self, mock_validate, mock_sleep):
+        mock_validate.return_value = (False, "401 Bad credentials")
+        with pytest.raises(TokenExpiredError, match="expired, revoked"):
+            run_sync("bad-token", schedule_cron="0 0 * * *")
+        mock_sleep.assert_called_once()
+
+    @patch("gitlytics.automation._interruptible_sleep")
+    @patch("gitlytics.automation.validate_token")
+    def test_network_blip_does_not_raise(self, mock_validate, mock_sleep):
+        # A non-auth validation failure retries next cycle; stop the loop after
+        # the first observation by making the second call terminal.
+        mock_validate.side_effect = [
+            (False, "Connection timed out"),
+            (False, "401 Bad credentials"),
+        ]
+        with pytest.raises(TokenExpiredError):
+            run_sync("flaky-token", schedule_cron="0 0 * * *")
+        assert mock_validate.call_count == 2

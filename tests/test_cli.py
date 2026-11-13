@@ -7,6 +7,7 @@ import sys
 import pytest
 from unittest.mock import patch, MagicMock
 from gitlytics.cli import main, parse_repo_names
+from gitlytics import TokenExpiredError
 
 
 # ── parse_repo_names ──────────────────────────────────────────────────────────
@@ -155,3 +156,15 @@ class TestCliRepoNameValidation:
                 main()
         assert exc.value.code == 2
         mock_fetch.assert_not_called()
+
+
+class TestCliTokenExpired:
+    @patch("gitlytics.cli.sync")
+    def test_sync_token_expiry_exits_1(self, mock_sync):
+        # LIB-10: the library raises TokenExpiredError; only the CLI decides
+        # to exit, and it must map the failure to exit code 1.
+        mock_sync.side_effect = TokenExpiredError("token expired, revoked")
+        with patch.object(sys, "argv", ["gitlytics", "sync", "--token", "tok"]):
+            with pytest.raises(SystemExit) as exc:
+                main()
+        assert exc.value.code == 1

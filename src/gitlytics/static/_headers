@@ -3,7 +3,9 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://scripts.clarity.ms https://www.clarity.ms https://static.cloudflareinsights.com; connect-src 'self' https://api.gitlytics.dev https://api.github.com https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com https://*.clarity.ms https://cloudflareinsights.com https://*.cloudflareinsights.com; img-src 'self' data: https://api.gitlytics.dev https://avatars.githubusercontent.com https://github.com https://raw.githubusercontent.com https://www.google-analytics.com https://c.clarity.ms https://*.clarity.ms; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Cross-Origin-Resource-Policy: same-site
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-0aHf/mzAxjKSr6oDHxGU1TPkLb7TVeo5m5tswE7FvgI=' 'sha256-kUIUfj6UD3LSTSVnevOKnn0Jw7UVJKI/teeqilal+v8=' https://www.googletagmanager.com https://www.google-analytics.com https://scripts.clarity.ms https://www.clarity.ms https://static.cloudflareinsights.com; connect-src 'self' https://api.gitlytics.dev https://api.github.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com https://*.clarity.ms https://cloudflareinsights.com https://*.cloudflareinsights.com; img-src 'self' data: blob: https://api.gitlytics.dev https://avatars.githubusercontent.com https://github.com https://raw.githubusercontent.com https://www.google-analytics.com https://c.clarity.ms https://*.clarity.ms; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'
 
 # Hashed Vite bundles - safe to cache forever because filename changes on every build
 /assets/*
@@ -34,4 +36,3 @@
   Cache-Control: no-cache, no-store, must-revalidate
 /
   Cache-Control: no-cache, no-store, must-revalidate
-

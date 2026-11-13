@@ -265,7 +265,8 @@ class TestUploadCsvEndpoint:
         content = ",".join(headers) + "\n" + ",".join(str(v) for v in row) + "\n"
         return client.post(
             "/api/upload-csv",
-            files={"file": ("test.csv", content.encode("utf-8"), "text/csv")}
+            files={"file": ("test.csv", content.encode("utf-8"), "text/csv")},
+            headers={"origin": "http://testserver"},
         )
 
     def test_valid_native_csv_returns_200(self):
@@ -312,20 +313,18 @@ class TestUploadCsvEndpoint:
         response = self._upload(["repository", "date", "views"], ["user/repo", "2025-06-14", 10])
         assert isinstance(response.json(), list)
 
-    def test_persists_uploaded_csv_if_data_dir_set(self, tmp_path):
-        # Save to temp directory if env var set
-        from pathlib import Path
+    def test_upload_is_preview_only_and_never_persists(self, tmp_path):
+        # Uploads are previews. Persisting them under traffic_*.csv made every
+        # upload a permanent part of every future /api/traffic response.
         data_dir = tmp_path / "data"
+        data_dir.mkdir()
         with patch.dict("os.environ", {"GITLYTICS_DATA_DIR": str(data_dir)}, clear=False):
             response = self._upload(
                 ["repository", "date", "views"],
                 ["user/repo", "2025-06-14", 42]
             )
-            assert response.status_code == 200
-            csv_files = list(data_dir.glob("traffic_uploaded_*.csv"))
-            assert len(csv_files) == 1
-            saved_content = csv_files[0].read_text()
-            assert "user/repo" in saved_content
+        assert response.status_code == 200
+        assert list(data_dir.iterdir()) == []
 
 
 # ── Root and SPA fallback ──────────────────────────────────────────────────────
@@ -401,7 +400,7 @@ class TestCorsHeaders:
 
 class TestUploadSizeLimit:
     def test_oversize_upload_returns_413(self, tmp_path):
-        # Bug fix: an upload larger than 25 MB must return 413, not consume memory
+        # Bug fix: an upload larger than 5 MB must return 413, not consume memory
         from gitlytics.api import _MAX_UPLOAD_BYTES
         # Build a body that's just over the limit (1 byte extra)
         body = b"x" * (_MAX_UPLOAD_BYTES + 1)
@@ -412,11 +411,12 @@ class TestUploadSizeLimit:
             response = client.post(
                 "/api/upload-csv",
                 files={"file": ("huge.csv", body, "text/csv")},
+                headers={"origin": "http://testserver"},
             )
         assert response.status_code == 413
 
     def test_oversize_upload_returns_413_without_data_dir(self, tmp_path):
-        # Bug fix: the 25 MB cap must be enforced even when GITLYTICS_DATA_DIR is
+        # Bug fix: the 5 MB cap must be enforced even when GITLYTICS_DATA_DIR is
         # not set (the default/common configuration). The original fix only enforced
         # the limit inside the `if data_dir:` branch.
         from gitlytics.api import _MAX_UPLOAD_BYTES
@@ -429,6 +429,7 @@ class TestUploadSizeLimit:
             response = client.post(
                 "/api/upload-csv",
                 files={"file": ("huge.csv", body, "text/csv")},
+                headers={"origin": "http://testserver"},
             )
         assert response.status_code == 413
 
@@ -438,5 +439,65 @@ class TestUploadSizeLimit:
         response = client.post(
             "/api/upload-csv",
             files={"file": ("ok.csv", body, "text/csv")},
+            headers={"origin": "http://testserver"},
         )
         assert response.status_code in (200, 400)  # 400 only if column recognition fails
+
+
+# -- LIB-03/LIB-04 regression: token delegation and cross-origin uploads ------
+
+class TestLibraryApiHardening:
+    def test_env_token_fallback_is_disabled_by_default(self):
+        import os
+        from gitlytics.api import _get_token
+        with patch.dict(os.environ, {"GITLYTICS_TOKEN": "env_tok"}, clear=False):
+            os.environ.pop("GITLYTICS_ALLOW_ENV_TOKEN", None)
+            assert _get_token("") is None
+
+    def test_env_token_fallback_requires_opt_in(self):
+        import os
+        from gitlytics.api import _get_token
+        with patch.dict(
+            os.environ,
+            {"GITLYTICS_TOKEN": "env_tok", "GITLYTICS_ALLOW_ENV_TOKEN": "1"},
+            clear=False,
+        ):
+            assert _get_token("") == "env_tok"
+
+    def test_explicit_request_token_always_wins(self):
+        from gitlytics.api import _get_token
+        assert _get_token(" request_tok ") == "request_tok"
+
+    def test_star_history_requires_bearer_token(self):
+        response = client.get("/api/star-history?owner=u&repo=r")
+        assert response.status_code == 401
+
+    def test_malformed_star_history_bearer_is_rejected(self):
+        response = client.get(
+            "/api/star-history?owner=u&repo=r",
+            headers={"authorization": "Token abc"},
+        )
+        assert response.status_code == 401
+
+    def test_cross_origin_upload_is_rejected(self):
+        body = b"date,repository,views\n2025-06-14,u/r,10\n"
+        import os
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("GITLYTICS_UPLOAD_KEY", None)
+            response = client.post(
+                "/api/upload-csv",
+                files={"file": ("test.csv", body, "text/csv")},
+                headers={"origin": "https://evil.example"},
+            )
+        assert response.status_code == 403
+
+    def test_upload_key_allows_non_browser_client(self):
+        body = b"date,repository,views\n2025-06-14,u/r,10\n"
+        import os
+        with patch.dict(os.environ, {"GITLYTICS_UPLOAD_KEY": "secret-key"}, clear=False):
+            response = client.post(
+                "/api/upload-csv",
+                files={"file": ("test.csv", body, "text/csv")},
+                headers={"x-upload-key": "secret-key"},
+            )
+        assert response.status_code == 200

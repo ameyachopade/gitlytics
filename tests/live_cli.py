@@ -83,6 +83,11 @@ if __name__ == "__main__":
         if env_token:
             # Pass the token via environment variable so we don't need --token on every call
             env["GITLYTICS_TOKEN"] = token
+        else:
+            # Negative tests must actually see a token-less environment, otherwise
+            # a set GITLYTICS_TOKEN/GITHUB_TOKEN in the parent makes them vacuous.
+            env.pop("GITLYTICS_TOKEN", None)
+            env.pop("GITHUB_TOKEN", None)
         return subprocess.run(
             cmd,
             capture_output=True,
@@ -94,15 +99,15 @@ if __name__ == "__main__":
         )
 
     # ─────────────────────────────────────────────────────────────────────────────
-    # TEST 1 — gitlytics (no args) should print help and exit with code 1
+    # TEST 1 — gitlytics (no args) should print help and exit with code 0
     # ─────────────────────────────────────────────────────────────────────────────
     section("1 / 5  No-args guard")
 
     print("\n  [1a] Running `gitlytics` with no arguments")
     try:
         result = run_cli(env_token=False)
-        if result.returncode == 1:
-            ok(f"Exited with code 1 as expected (help was printed)")
+        if result.returncode == 0:
+            ok("Exited with code 0 and printed help (documented contract)")
         else:
             warn(f"Exited with unexpected code {result.returncode}")
         if result.stdout:

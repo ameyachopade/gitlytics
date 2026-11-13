@@ -47,17 +47,58 @@ except ImportError:
 _DEFAULT_DATA_DIR = Path(__file__).resolve().parent.parent / "_data"
 
 
+@pytest.fixture(autouse=True)
+def _clear_api_caches():
+    """Keep module-level caches from leaking state between tests.
+
+    ``api`` keeps a short-TTL live-traffic cache and a CSV read cache. Their
+    keys are derived from the token / file path, so two tests that reuse the
+    same fake token would otherwise see each other's data.
+    """
+    try:
+        from gitlytics import api as _api
+    except Exception:
+        yield
+        return
+
+    def _clear():
+        for cache_name, lock_name in (
+            ("_TRAFFIC_CACHE", "_TRAFFIC_CACHE_LOCK"),
+            ("_DEEP_STATS_CACHE", "_DEEP_STATS_CACHE_LOCK"),
+            ("_CSV_CACHE", "_CSV_CACHE_LOCK"),
+            ("_auth_cache", "_auth_cache_lock"),
+        ):
+            cache = getattr(_api, cache_name, None)
+            lock = getattr(_api, lock_name, None)
+            if cache is None:
+                continue
+            if lock is None:
+                cache.clear()
+            else:
+                with lock:
+                    cache.clear()
+        try:
+            from gitlytics import core as _core
+            rcache = getattr(_core, "_stargazer_restricted_cache", None)
+            rlock = getattr(_core, "_stargazer_restricted_lock", None)
+            if rcache is not None:
+                if rlock is not None:
+                    with rlock:
+                        rcache.clear()
+                else:
+                    rcache.clear()
+        except Exception:
+            pass
+
+    _clear()
+    yield
+    _clear()
+
+
 @pytest.fixture(scope="session")
 def data_dir(tmp_path_factory) -> Path:
-    """
-    Per-session persistent data directory used by integration tests that need
-    a real output location. Defaults to a temp directory so the suite is
-    hermetic; the original hard-coded absolute path was dropped because it
-    leaked into other developers' working trees.
-    """
-    target = _DEFAULT_DATA_DIR
-    target.mkdir(parents=True, exist_ok=True)
-    return target
+    """Per-session persistent data directory using pytest's temp dir."""
+    return tmp_path_factory.mktemp("data")
 
 
 @pytest.fixture(scope="session")

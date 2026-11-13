@@ -17,7 +17,7 @@ GitHub's native Traffic API retains repository views, unique visitors, clones, c
 The hosted application at `dashboard.gitlytics.dev` offers three access modes:
 
 - **Cloud OAuth Mode** : Log in via GitHub OAuth to automatically sync and track public or private repositories.
-- **Personal Access Token (PAT) Mode** : Supply a read-only Personal Access Token to monitor target repositories without full account linking.
+- **Personal Access Token (PAT) Mode** : Supply a GitHub Personal Access Token (classic `repo` scope, or fine-grained `Administration: Read` + `Metadata: Read`) to monitor target repositories without full account linking.
 - **CSV Backup & Offline Mode** : Upload existing Gitlytics CSV backup files or connect to local FastAPI instances for offline visualization.
 
 ### Dashboard Workspace Capabilities
@@ -68,13 +68,13 @@ history = gitlytics.fetch_star_history(owner="owner", repo="repo")
 
 ## 4. GitHub Action - Traffic Sync Automation
 
-Automate regular traffic backups using the official GitHub Action `ameyachopade/gitlytics-github-traffic-automation@v1`.
+Automate regular traffic backups using the official GitHub Action `ameyachopade/gitlytics-github-traffic-automation@eb505aff1a8a2df2d28b14ff7431ef817afaf0a8`.
 
 ```yaml
 name: Gitlytics Traffic Sync
 on:
   schedule:
-    - cron: '0 17 */13 * *'  # Runs automatically every 13 days
+    - cron: '0 17 1,14,27 * *'  # 1st, 14th and 27th at 17:00 UTC
   workflow_dispatch:
 
 jobs:
@@ -84,10 +84,10 @@ jobs:
       contents: write
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Sync Traffic Data
-        uses: ameyachopade/gitlytics-github-traffic-automation@v1
+        uses: ameyachopade/gitlytics-github-traffic-automation@eb505aff1a8a2df2d28b14ff7431ef817afaf0a8
         with:
           traffic_token: ${{ secrets.TRAFFIC_TOKEN }}
           data_dir: "data/"
@@ -102,12 +102,12 @@ Embed dynamic SVG widgets directly into your GitHub README or website:
 ### Developer Profile Cards
 - **URL Pattern**: `https://api.gitlytics.dev/api/cards/{card_type}/{username}.svg`
 - **Card Types**: `profile-details`, `contribution-streak`, `most-commit-language`, `productive-time`, `repos-per-language`, `stats`
-- **Options**: `theme` (e.g. `dracula`, `tokyonight`, `solarized_dark`, `github-dark`), `hide_border`, `border_radius`, `streak_mode` (`daily`|`weekly`), `exclude_days`
+- **Options**: `theme` (e.g. `dracula`, `tokyonight`, `solarized-dark`, `catppuccin-mocha`), `hide_border`, `border_radius`, `streak_mode` (`daily`|`weekly`|`monthly`), `exclude_days`
 - **Custom Colors**: `bg`, `border`, `title`, `text`, `text_secondary`, `accent_secondary`, `highlight`, `chart`
 
 ### Repository Metric Charts
 - **URL Pattern**: `https://api.gitlytics.dev/api/chart/{owner}/{repo}/{metric}.svg`
-- **Supported Metrics**: `views`, `clones`, `stars`, `forks`
+- **Supported Metrics**: `views`, `clones`, `stars`
 
 ### Technology Logos & Stack Capsules
 - **URL Pattern**: `https://api.gitlytics.dev/api/logos/{slug}.svg`

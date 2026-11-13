@@ -1,1 +1,9 @@
+# Cloudflare Pages / Netlify fallback.
+#
+# AF2-XC-11: the dashboard ships neither `auth.md` nor an OAuth discovery
+# document, so those machine-readable probes must return an explicit 404
+# instead of the SPA shell with a 200 status.
+/auth.md /index.html 404
+/.well-known/* /index.html 404
+
 /* /index.html 200
