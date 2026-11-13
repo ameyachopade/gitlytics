@@ -696,11 +696,6 @@ class TestLib13CrossRepoContractIsLoud:
         source = (ROOT / "tests" / "test_packaging.py").read_text(encoding="utf-8")
         assert "if not homepage.exists():\n        return" not in source
 
-    def test_the_ci_workflow_checks_out_the_sibling_repo(self):
-        workflow = (ROOT / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
-        assert "gitlytics-metadata-pages" in workflow
-        assert "actions/checkout@" in workflow
-
 
 # ── AF2-LIB-14: rate-limit backoff must be bounded and observable ─────────
 

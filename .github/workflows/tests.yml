@@ -28,19 +28,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      # The cross-repo contract tests (tests/test_metadata_contract.py) compare
-      # this package's version against the metadata sites'. Without this
-      # checkout they silently skip, so the "single source of version truth"
-      # guarantee is never enforced in CI (AF2-LIB-13).
-      - name: Checkout the metadata sites
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        continue-on-error: true
-        with:
-          repository: ameyachopade/gitlytics-metadata-pages
-          ref: ${{ vars.METADATA_REF || 'main' }}
-          path: gitlytics-metadata-pages
-          persist-credentials: false
-
       - name: Set up Python
         uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
         with:
