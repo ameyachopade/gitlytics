@@ -5,13 +5,13 @@
 # Gitlytics
 ### Next-Gen GitHub Traffic Intelligence, Dynamic SVG Widgets & Automation
 
-[![PyPI version](https://img.shields.io/pypi/v/gitlytics?color=38bdf8&label=PyPI&logo=pypi&logoColor=white)](https://pypi.org/project/gitlytics/)
-[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-Apache_2.0_%2B_Commons_Clause-blue.svg)](LICENSE)
-[![FastAPI](https://img.shields.io/badge/Backend-FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![React](https://img.shields.io/badge/Frontend-React_19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
-[![Live Dashboard](https://img.shields.io/badge/Live_Studio-dashboard.gitlytics.dev-818cf8?logo=googlechrome&logoColor=white)](https://dashboard.gitlytics.dev)
-[![Documentation](https://img.shields.io/badge/Docs-docs.gitlytics.dev-10b981?logo=readthedocs&logoColor=white)](https://docs.gitlytics.dev)
+[![PyPI version](https://api.gitlytics.dev/api/badges/tech/pypi.svg?style=flat&label=PyPI&value=v0.7.2)](https://pypi.org/project/gitlytics/)
+[![Python](https://api.gitlytics.dev/api/badges/tech/python.svg?style=flat&label=Python-3.11%2B&value=3.11%2B)](https://www.python.org/) <!-- Python-3.11+ -->
+[![License](https://api.gitlytics.dev/api/badges/tech/custom.svg?style=flat&label=License&value=Apache_2.0_%2B_Commons_Clause&color=blue)](LICENSE)
+[![FastAPI](https://api.gitlytics.dev/api/badges/tech/fastapi.svg?style=flat&label=Backend&value=FastAPI)](https://fastapi.tiangolo.com/)
+[![React](https://api.gitlytics.dev/api/badges/tech/react.svg?style=flat&label=Frontend&value=React_19)](https://react.dev/)
+[![Live Dashboard](https://api.gitlytics.dev/api/badges/tech/custom.svg?style=flat&label=Studio&value=dashboard.gitlytics.dev&color=818cf8)](https://dashboard.gitlytics.dev)
+[![Documentation](https://api.gitlytics.dev/api/badges/tech/custom.svg?style=flat&label=Docs&value=docs.gitlytics.dev&color=10b981)](https://docs.gitlytics.dev)
 
 <br/>
 
