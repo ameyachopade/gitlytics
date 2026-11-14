@@ -69,9 +69,9 @@ Elevate your GitHub profile README with the Gitlytics hosted native, dynamic vec
         <img src="https://api.gitlytics.dev/api/cards/language-diversity/demo.svg?theme=dracula&v=3" alt="Language Diversity" width="95%" />
       </td>
       <td align="center" width="50%">
-        <b>📈 Yearly Activity Matrix</b> (Nord)<br/>
-        <sub>Commit velocity, issue resolutions, code reviews & contribution cadence</sub><br/><br/>
-        <img src="https://api.gitlytics.dev/api/cards/yearly-activity/demo.svg?theme=nord&v=3" alt="Yearly Activity Matrix" width="95%" />
+        <b>📈 All Contributions</b> (Nord)<br/>
+        <sub>Commits, pull requests, issues & code reviews combined</sub><br/><br/>
+        <img src="https://api.gitlytics.dev/api/cards/combined-contributions/demo.svg?theme=nord&v=3" alt="All Contributions" width="95%" />
       </td>
     </tr>
   </table>
@@ -101,7 +101,7 @@ Add any card to your GitHub `README.md` with a single line of Markdown:
 | **Velocity** | `commit-velocity` | High-frequency commit trendlines, averages, and momentum. |
 | **Trajectory** | `star-journey` | Milestone progression towards star milestones. |
 | **Reviews** | `review-stats` | PR reviews conducted, turnaround latency, and acceptance rate. |
-| **Matrix** | `yearly-activity` | Comprehensive yearly breakdown of contributions by category. |
+| **Contributions** | `combined-contributions` | Commits, pull requests, issues & code reviews combined. |
 | **Impact** | `open-source-impact` | Ecosystem reach, community forks, and public issue closure rate. |
 
 *...and 21 more specialized cards available in the [Interactive Embed Studio](https://dashboard.gitlytics.dev/widgets).*

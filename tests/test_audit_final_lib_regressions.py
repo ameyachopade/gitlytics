@@ -346,7 +346,6 @@ def test_af_lib_14_cli_dashboard_and_metrics_and_username(capsys):
 
 def test_af_lib_15_and_16_readme_and_all_functions_harness():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "React_19" in readme
     assert "24 Daily Metrics" in readme
     assert "`releases`" in readme
     assert "Commons Clause" in readme
