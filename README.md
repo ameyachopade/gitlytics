@@ -5,13 +5,13 @@
 # Gitlytics
 ### Next-Gen GitHub Traffic Intelligence, Dynamic SVG Widgets & Automation
 
-[![PyPI version](https://api.gitlytics.dev/api/badges/tech/pypi.svg?style=flat&label=PyPI&value=v0.7.2)](https://pypi.org/project/gitlytics/)
-[![Python](https://api.gitlytics.dev/api/badges/tech/python.svg?style=flat&label=Python-3.11%2B&value=3.11%2B)](https://www.python.org/) <!-- Python-3.11+ -->
-[![License](https://api.gitlytics.dev/api/badges/tech/custom.svg?style=flat&label=License&value=Apache_2.0_%2B_Commons_Clause&color=blue)](LICENSE)
-[![FastAPI](https://api.gitlytics.dev/api/badges/tech/fastapi.svg?style=flat&label=Backend&value=FastAPI)](https://fastapi.tiangolo.com/)
-[![React](https://api.gitlytics.dev/api/badges/tech/react.svg?style=flat&label=Frontend&value=React_19)](https://react.dev/)
-[![Live Dashboard](https://api.gitlytics.dev/api/badges/tech/custom.svg?style=flat&label=Studio&value=dashboard.gitlytics.dev&color=818cf8)](https://dashboard.gitlytics.dev)
-[![Documentation](https://api.gitlytics.dev/api/badges/tech/custom.svg?style=flat&label=Docs&value=docs.gitlytics.dev&color=10b981)](https://docs.gitlytics.dev)
+[![PyPI version](https://api.gitlytics.dev/api/badge/pypi/gitlytics.svg?label=PyPI)](https://pypi.org/project/gitlytics/)
+[![Python](https://api.gitlytics.dev/api/badge/tech.svg?slug=python&style=icon_label_value&label=Python&value=3.11%2B)](https://www.python.org/) <!-- Python-3.11+ -->
+[![License](https://api.gitlytics.dev/api/badge/static.svg?label=License&message=Apache%202.0%20%2B%20Commons%20Clause&color=blue)](LICENSE)
+[![FastAPI](https://api.gitlytics.dev/api/badge/tech.svg?slug=fastapi&style=icon_label_value&label=Backend&value=FastAPI)](https://fastapi.tiangolo.com/)
+[![React](https://api.gitlytics.dev/api/badge/tech.svg?slug=react&style=icon_label_value&label=Frontend&value=React%2019)](https://react.dev/)
+[![Live Dashboard](https://api.gitlytics.dev/api/badge/static.svg?label=Studio&message=dashboard.gitlytics.dev&color=818cf8)](https://dashboard.gitlytics.dev)
+[![Documentation](https://api.gitlytics.dev/api/badge/static.svg?label=Docs&message=docs.gitlytics.dev&color=10b981)](https://docs.gitlytics.dev)
 
 <br/>
 
@@ -132,7 +132,7 @@ Generate clean capsule badges for your tech stack. Supports official brand logos
 ![FastAPI](https://api.gitlytics.dev/api/badge/tech.svg?slug=fastapi&style=icon_label_value&label=Backend&value=FastAPI&color=009688)
 
 <!-- Custom text-only concept capsule -->
-![LLM Arch](https://api.gitlytics.dev/api/badge/tech.svg?label=Arch&value=RAG%2BGraph&style=label_value&color=7c3aed)
+![LLM Arch](https://api.gitlytics.dev/api/badge/tech.svg?slug=rag&style=icon_label_value&label=Arch&value=RAG%2BGraph&label_color=7c3aed&value_color=7c3aed)
 ```
 
 <div align="center">
