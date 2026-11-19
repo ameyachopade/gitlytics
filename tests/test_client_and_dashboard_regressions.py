@@ -383,7 +383,7 @@ def test_af_xrepo_08_workspace_hygiene_and_gitignore_coverage():
             assert not (
                 name_only == ".env" or name_only.startswith(".env.")
             ), f"gitlytics tracks {path}"
-            assert name_only != ".coverage", f"{name} tracks {path}"
+            assert name_only != ".coverage", f"gitlytics tracks {path}"
 
     # The library must not leave a coverage file behind.
     assert not (ROOT / ".coverage").exists()
