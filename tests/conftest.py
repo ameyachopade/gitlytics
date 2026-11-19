@@ -27,7 +27,7 @@ import os
 import pytest
 from pathlib import Path
 
-# ── Load .env before any test runs ───────────────────────────────────────────
+# Load .env before any test runs
 # Walk up two levels from tests/ to find the project root where .env lives
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent  # gitlytics/
 _ENV_FILE = _PROJECT_ROOT / ".env"
@@ -38,9 +38,9 @@ try:
         # override=False means we won't overwrite a token that's already in the shell env
         load_dotenv(_ENV_FILE, override=False)
 except ImportError:
-    pass  # python-dotenv not installed — rely on env vars that are already set
+    pass  # python-dotenv not installed - rely on env vars that are already set
 
-# ── Fixtures ──────────────────────────────────────────────────────────────────
+# Fixtures
 
 # Persistent data dir for integration tests. Falls back to a per-process temp
 # directory so the suite doesn't write into the user's project tree.

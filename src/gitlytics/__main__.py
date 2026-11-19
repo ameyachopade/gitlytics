@@ -1,9 +1,9 @@
-"""
-gitlytics/__main__.py
-Makes `python -m gitlytics` work identically to the `gitlytics` console command.
-This is the entry point Python calls when the package is run with -m.
-"""
+# Copyright (c) 2026 Ameya Sanjay Chopade
+# SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
+"""Entry point for `python -m gitlytics`."""
+
 from gitlytics.cli import main
 
-# Run the CLI when invoked as `python -m gitlytics`
-main()
+# Delegate directly to the CLI entrypoint when invoked as a module.
+if __name__ == "__main__":
+    main()

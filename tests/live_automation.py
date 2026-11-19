@@ -1,6 +1,6 @@
 """
 live_automation.py
-Online integration test for gitlytics.automation — real GitHub API, real CSV files.
+Online integration test for gitlytics.automation - real GitHub API, real CSV files.
 Tests every aspect of the sync engine that matters before publishing to PyPI.
 
 Usage:
@@ -75,11 +75,11 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # ─────────────────────────────────────────────────────────────────────────
-    # TEST 1 — First sync creates a valid CSV
+    # TEST 1 - First sync creates a valid CSV
     # ─────────────────────────────────────────────────────────────────────────
-    section("1 / 7  First sync cycle — CSV creation")
+    section("1 / 7  First sync cycle - CSV creation")
 
-    print("\n  [1a] Running run_sync_cycle() — monthly mode")
+    print("\n  [1a] Running run_sync_cycle() - monthly mode")
     try:
         run_sync_cycle(token, data_dir=str(DATA_DIR), output_mode="monthly")
         monthly_files = list(DATA_DIR.glob("traffic_????-??.csv"))
@@ -88,7 +88,7 @@ if __name__ == "__main__":
             size = csv_path.stat().st_size
             ok(f"CSV created: {csv_path.name}  ({size:,} bytes)")
         else:
-            warn("No monthly CSV found — token may have no repos with traffic")
+            warn("No monthly CSV found - token may have no repos with traffic")
             csv_path = None
     except Exception as exc:
         fail(f"run_sync_cycle() raised: {exc}")
@@ -115,7 +115,7 @@ if __name__ == "__main__":
         except Exception as exc:
             fail(f"CSV read failed: {exc}")
     else:
-        warn("Skipped — no CSV to check")
+        warn("Skipped - no CSV to check")
 
     print("\n  [1c] Data values are sensible (dates, numbers, no blanks)")
     if csv_path and csv_path.exists():
@@ -138,15 +138,15 @@ if __name__ == "__main__":
         except Exception as exc:
             fail(f"Data validation raised: {exc}")
     else:
-        warn("Skipped — no CSV to validate")
+        warn("Skipped - no CSV to validate")
 
     # ─────────────────────────────────────────────────────────────────────────
-    # TEST 2 — Second sync must not duplicate rows
+    # TEST 2 - Second sync must not duplicate rows
     # ─────────────────────────────────────────────────────────────────────────
-    section("2 / 7  Deduplication — no duplicate rows on second sync")
+    section("2 / 7  Deduplication - no duplicate rows on second sync")
 
     if not csv_path or not csv_path.exists():
-        warn("Skipped — no CSV from test 1")
+        warn("Skipped - no CSV from test 1")
     else:
         try:
             with open(csv_path, "r", encoding="utf-8") as f:
@@ -160,14 +160,14 @@ if __name__ == "__main__":
             if rows_after == rows_before:
                 ok(f"Dedup works: {rows_before} rows before → {rows_after} rows after (no change)")
             elif rows_after > rows_before:
-                warn(f"Row count grew {rows_before} → {rows_after} (GitHub returned new data — this is fine)")
+                warn(f"Row count grew {rows_before} → {rows_after} (GitHub returned new data - this is fine)")
             else:
                 fail(f"Rows decreased unexpectedly: {rows_before} → {rows_after}")
         except Exception as exc:
             fail(f"Deduplication check raised: {exc}")
 
     # ─────────────────────────────────────────────────────────────────────────
-    # TEST 3 — Yearly mode creates a separate file
+    # TEST 3 - Yearly mode creates a separate file
     # ─────────────────────────────────────────────────────────────────────────
     section("3 / 7  Yearly output mode")
 
@@ -184,7 +184,7 @@ if __name__ == "__main__":
         fail(f"Yearly sync raised: {exc}")
 
     # ─────────────────────────────────────────────────────────────────────────
-    # TEST 4 — Export JSON database
+    # TEST 4 - Export JSON database
     # ─────────────────────────────────────────────────────────────────────────
     section("4 / 7  JSON export")
 
@@ -224,11 +224,11 @@ if __name__ == "__main__":
         fail(f"export_json_database() raised: {exc}")
 
     # ─────────────────────────────────────────────────────────────────────────
-    # TEST 5 — public run_sync() API (the function users call directly)
+    # TEST 5 - public run_sync() API (the function users call directly)
     # ─────────────────────────────────────────────────────────────────────────
     section("5 / 7  run_sync() public API")
 
-    print("\n  [5a] run_sync() — one-shot (no schedule_cron)")
+    print("\n  [5a] run_sync() - one-shot (no schedule_cron)")
     sync_json_path = DATA_DIR / "run_sync_export.json"
     try:
         run_sync(
@@ -248,7 +248,7 @@ if __name__ == "__main__":
         fail(f"run_sync() raised: {exc}")
 
     # ─────────────────────────────────────────────────────────────────────────
-    # TEST 6 — get_csv_path utility
+    # TEST 6 - get_csv_path utility
     # ─────────────────────────────────────────────────────────────────────────
     section("6 / 7  get_csv_path() utility")
 
@@ -288,12 +288,12 @@ if __name__ == "__main__":
         fail(f"get_csv_path directory creation raised: {exc}")
 
     # ─────────────────────────────────────────────────────────────────────────
-    # TEST 7 — _raw_referrers and _raw_paths are valid JSON in the CSV
+    # TEST 7 - _raw_referrers and _raw_paths are valid JSON in the CSV
     # ─────────────────────────────────────────────────────────────────────────
     section("7 / 7  Raw JSON columns in CSV")
 
     if not csv_path or not csv_path.exists():
-        warn("Skipped — no CSV from test 1")
+        warn("Skipped - no CSV from test 1")
     else:
         try:
             df = pd.read_csv(csv_path)

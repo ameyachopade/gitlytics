@@ -88,11 +88,11 @@ if __name__ == "__main__":
             sys.exit(1)
 
     # ─────────────────────────────────────────────────────────────────────────────
-    # TEST 1 — fetch_traffic()
+    # TEST 1 - fetch_traffic()
     # ─────────────────────────────────────────────────────────────────────────────
     section("1 / 4  gitlytics.fetch_traffic()")
 
-    # 1a — return_format="dataframe"
+    # 1a - return_format="dataframe"
     print("\n  [1a] return_format='dataframe'")
     try:
         df = gitlytics.fetch_traffic(token=token, return_format="dataframe")
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     except Exception as exc:
         fail(f"fetch_traffic(return_format='dataframe') raised: {exc}")
 
-    # 1b — return_format="timeseries"
+    # 1b - return_format="timeseries"
     print("\n  [1b] return_format='timeseries'")
     try:
         payload = gitlytics.fetch_traffic(token=token, return_format="timeseries")
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     except Exception as exc:
         fail(f"fetch_traffic(return_format='timeseries') raised: {exc}")
 
-    # 1c — return_format="summary"
+    # 1c - return_format="summary"
     print("\n  [1c] return_format='summary'")
     try:
         summary = gitlytics.fetch_traffic(token=token, return_format="summary")
@@ -134,7 +134,7 @@ if __name__ == "__main__":
     except Exception as exc:
         fail(f"fetch_traffic(return_format='summary') raised: {exc}")
 
-    # 1d — invalid return_format should raise ValueError
+    # 1d - invalid return_format should raise ValueError
     print("\n  [1d] Invalid return_format raises ValueError")
     try:
         gitlytics.fetch_traffic(token=token, return_format="raw")
@@ -144,7 +144,7 @@ if __name__ == "__main__":
     except Exception as exc:
         fail(f"Wrong exception type raised: {type(exc).__name__}: {exc}")
 
-    # 1e — print_table=True
+    # 1e - print_table=True
     print("\n  [1e] print_table=True  (output below)")
     print("  " + "·" * 51)
     try:
@@ -154,7 +154,7 @@ if __name__ == "__main__":
     except Exception as exc:
         fail(f"print_table raised: {exc}")
 
-    # 1f — save_file (CSV)
+    # 1f - save_file (CSV)
     print("\n  [1f] save_file=<path>.csv")
     try:
         data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "data_module"))
@@ -166,7 +166,7 @@ if __name__ == "__main__":
     except Exception as exc:
         fail(f"save_file CSV raised: {exc}")
 
-    # 1g — save_file (JSON)
+    # 1g - save_file (JSON)
     print("\n  [1g] save_file=<path>.json")
     try:
         data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data"))
@@ -179,7 +179,7 @@ if __name__ == "__main__":
         fail(f"save_file JSON raised: {exc}")
 
     # ─────────────────────────────────────────────────────────────────────────────
-    # TEST 2 — sync()
+    # TEST 2 - sync()
     # ─────────────────────────────────────────────────────────────────────────────
     section("2 / 4  gitlytics.sync()")
 
@@ -187,13 +187,13 @@ if __name__ == "__main__":
     os.makedirs(data_dir, exist_ok=True)
     csv_path = None  # track across sub-tests
 
-    # 2a — one-shot sync (no cron)
+    # 2a - one-shot sync (no cron)
     print("\n  [2a] One-shot sync (no cron)")
     try:
         gitlytics.sync(token=token, data_dir=data_dir, output_mode="monthly")
         csv_files = [f for f in os.listdir(data_dir) if f.endswith(".csv")]
         if not csv_files:
-            warn("sync() wrote no CSV — token has no repositories or they all have 0 traffic")
+            warn("sync() wrote no CSV - token has no repositories or they all have 0 traffic")
             warn("Sub-tests 2b/2c will be skipped (need at least one repo to sync)")
         else:
             csv_path = os.path.join(data_dir, csv_files[0])
@@ -202,10 +202,10 @@ if __name__ == "__main__":
     except Exception as exc:
         fail(f"sync() raised: {exc}")
 
-    # 2b — second sync should not duplicate rows
+    # 2b - second sync should not duplicate rows
     print("\n  [2b] Second sync must not duplicate rows")
     if csv_path is None:
-        warn("Skipped — no CSV was created in [2a]")
+        warn("Skipped - no CSV was created in [2a]")
     else:
         try:
             import csv as csv_mod
@@ -226,7 +226,7 @@ if __name__ == "__main__":
         except Exception as exc:
             fail(f"Deduplication check raised: {exc}")
 
-    # 2c — export_json
+    # 2c - export_json
     print("\n  [2c] sync() with export_json")
     try:
         import tempfile as _tf
@@ -245,7 +245,7 @@ if __name__ == "__main__":
     except Exception as exc:
         fail(f"sync(export_json=...) raised: {exc}")
 
-    # 2d — yearly output_mode
+    # 2d - yearly output_mode
     print("\n  [2d] output_mode='yearly'")
     try:
         gitlytics.sync(token=token, data_dir=data_dir, output_mode="yearly")
@@ -255,7 +255,7 @@ if __name__ == "__main__":
         fail(f"sync(output_mode='yearly') raised: {exc}")
 
     # ─────────────────────────────────────────────────────────────────────────────
-    # TEST 3 — serve_dashboard()
+    # TEST 3 - serve_dashboard()
     # ─────────────────────────────────────────────────────────────────────────────
     section("3 / 4  gitlytics.serve_dashboard()  (quick smoke test)")
 
@@ -302,7 +302,7 @@ if __name__ == "__main__":
     time.sleep(1)  # Let daemon thread wind down
 
     # ─────────────────────────────────────────────────────────────────────────────
-    # TEST 4 — ImportError guard (base install without [dashboard])
+    # TEST 4 - ImportError guard (base install without [dashboard])
     # ─────────────────────────────────────────────────────────────────────────────
     section("4 / 4  serve_dashboard() import guard")
 

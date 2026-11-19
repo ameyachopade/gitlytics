@@ -1,9 +1,4 @@
-"""Packaging regression tests for DEP-01.
-
-`requires-python` used to claim 3.9 while runtime dependencies (and the
-dashboard extra) already required 3.11. These checks keep the declared floor,
-README badge, homepage copy, and CI matrix in sync.
-"""
+"""Packaging tests verifying Python version floor, classifiers, README, and CI matrix."""
 import tomllib
 import warnings
 from pathlib import Path
@@ -34,7 +29,7 @@ def test_readme_no_longer_claims_python_39():
 
 
 def test_ci_matrix_covers_every_supported_python_version():
-    workflow = PACKAGE_ROOT / ".github" / "workflows" / "tests.yml"
+    workflow = PACKAGE_ROOT / ".github" / "workflows" / "linux.yml"
     text = workflow.read_text(encoding="utf-8")
     for version in ("3.11", "3.12", "3.13"):
         assert f'"{version}"' in text

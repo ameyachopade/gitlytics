@@ -1,0 +1,42 @@
+name: Lint & Dependency Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
+
+jobs:
+  lint-and-audit:
+    name: Ruff lint & pip-audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install tools and package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-cache-dir ruff pip-audit
+          python -m pip install -e ".[dashboard]"
+
+      - name: Run Ruff lint checks
+        run: ruff check --select E9,F63,F7,F82 src tests
+
+      - name: Audit Python dependencies for known CVEs
+        run: pip-audit --desc on

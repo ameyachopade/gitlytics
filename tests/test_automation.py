@@ -1,6 +1,6 @@
 """
 tests/test_automation.py
-Unit tests for gitlytics/automation.py — CSV sync, deduplication, and schema migration.
+Unit tests for gitlytics/automation.py - CSV sync, deduplication, and schema migration.
 All network calls are mocked so these tests run completely offline.
 """
 import csv
@@ -11,7 +11,7 @@ import pandas as pd
 from gitlytics.automation import run_sync_cycle, get_csv_path, _merge_schema, run_sync, TokenExpiredError
 
 
-# ── Helper — build a minimal tidy-data DataFrame ─────────────────────────────
+# Helper - build a minimal tidy-data DataFrame
 
 def _make_df(repo="user/repo", date="2025-06-14", views=5, clones=3):
     """Builds a one-row DataFrame that looks exactly like what fetch_traffic_data returns."""
@@ -36,7 +36,7 @@ def _make_df(repo="user/repo", date="2025-06-14", views=5, clones=3):
     }])
 
 
-# ── get_csv_path ──────────────────────────────────────────────────────────────
+# get_csv_path
 
 class TestGetCsvPath:
     def test_creates_data_dir(self, tmp_path):
@@ -63,11 +63,11 @@ class TestGetCsvPath:
         assert len(year_part) == 4 and year_part.isdigit()
 
 
-# ── _merge_schema ─────────────────────────────────────────────────────────────
+# _merge_schema
 
 class TestMergeSchema:
     def test_preserves_existing_order(self):
-        # Old columns should stay in their original position — don't shuffle the schema
+        # Old columns should stay in their original position - don't shuffle the schema
         existing = ["date", "repository", "views"]
         new = ["date", "repository", "views", "stars"]
         merged = _merge_schema(existing, new)
@@ -94,10 +94,10 @@ class TestMergeSchema:
         assert merged == schema
 
 
-# ── run_sync_cycle ────────────────────────────────────────────────────────────
+# run_sync_cycle
 
 class TestRunSyncCycle:
-    @patch("gitlytics.automation.fetch_traffic_data")
+    @patch("gitlytics.automation.scheduler.fetch_traffic_data")
     def test_creates_csv_on_first_run(self, mock_fetch, tmp_path):
         # First time sync runs, it should create a brand-new CSV file
         mock_fetch.return_value = _make_df()
@@ -105,7 +105,7 @@ class TestRunSyncCycle:
         csv_files = list(tmp_path.glob("traffic_*.csv"))
         assert len(csv_files) == 1
 
-    @patch("gitlytics.automation.fetch_traffic_data")
+    @patch("gitlytics.automation.scheduler.fetch_traffic_data")
     def test_csv_has_correct_fields(self, mock_fetch, tmp_path):
         # The CSV must have all expected column headers and correct values
         mock_fetch.return_value = _make_df()
@@ -119,7 +119,7 @@ class TestRunSyncCycle:
         assert rows[0]["views"] == "5"
         assert rows[0]["unique_cloners"] == "1"
 
-    @patch("gitlytics.automation.fetch_traffic_data")
+    @patch("gitlytics.automation.scheduler.fetch_traffic_data")
     def test_does_not_duplicate_same_day(self, mock_fetch, tmp_path):
         # Running sync twice with the same data should not create duplicate rows
         df = _make_df()
@@ -133,7 +133,7 @@ class TestRunSyncCycle:
             rows = list(csv.DictReader(f))
         assert len(rows) == 1  # Still 1 row, not 2
 
-    @patch("gitlytics.automation.fetch_traffic_data")
+    @patch("gitlytics.automation.scheduler.fetch_traffic_data")
     def test_appends_new_day(self, mock_fetch, tmp_path):
         # A sync run on a new date should add a second row alongside the first
         mock_fetch.return_value = _make_df(date="2025-06-14")
@@ -147,7 +147,7 @@ class TestRunSyncCycle:
             rows = list(csv.DictReader(f))
         assert len(rows) == 2
 
-    @patch("gitlytics.automation.fetch_traffic_data")
+    @patch("gitlytics.automation.scheduler.fetch_traffic_data")
     def test_empty_dataframe_does_not_create_file(self, mock_fetch, tmp_path):
         # If the token has no repos, no CSV should be written at all
         mock_fetch.return_value = pd.DataFrame()
@@ -155,7 +155,7 @@ class TestRunSyncCycle:
         csv_files = list(tmp_path.glob("traffic_*.csv"))
         assert len(csv_files) == 0
 
-    @patch("gitlytics.automation.fetch_traffic_data")
+    @patch("gitlytics.automation.scheduler.fetch_traffic_data")
     def test_schema_migration_adds_new_columns(self, mock_fetch, tmp_path):
         # When the API adds a new column, old rows in the CSV should get it with an empty value
         # First run: write CSV without 'new_col'
@@ -177,13 +177,13 @@ class TestRunSyncCycle:
         assert "new_col" in rows[0]
         assert len(rows) == 2
 
-    @patch("gitlytics.automation.fetch_traffic_data")
+    @patch("gitlytics.automation.scheduler.fetch_traffic_data")
     def test_subset_sync_preserves_existing_columns(self, mock_fetch, tmp_path):
-        # First run: full sync — all columns written
+        # First run: full sync - all columns written
         mock_fetch.return_value = _make_df(views=10, clones=5)
         run_sync_cycle("dummy_token", data_dir=str(tmp_path))
 
-        # Second run: subset sync — only 'views' present in new DataFrame
+        # Second run: subset sync - only 'views' present in new DataFrame
         subset_df = pd.DataFrame([{
             "date": "2025-06-14",
             "repository": "user/repo",
@@ -200,7 +200,7 @@ class TestRunSyncCycle:
         assert rows[0]["views"] == "99"
         assert rows[0]["clones"] == "5"
 
-    @patch("gitlytics.automation.fetch_traffic_data")
+    @patch("gitlytics.automation.scheduler.fetch_traffic_data")
     def test_uppercase_header_csv_is_accepted(self, mock_fetch, tmp_path):
         # Bug fix: column comparison should be case-insensitive so an exported
         # CSV with 'Date'/'Repository' headers is migrated correctly.
@@ -227,10 +227,10 @@ class TestRunSyncCycle:
         assert len(rows) == 2  # both rows preserved
 
 
-# -- LIB-01/LIB-06 regression: zero rows and uploads must not poison exports ---
+# Zero rows and uploaded previews must not poison exports
 
 class TestExportSafety:
-    @patch("gitlytics.automation.fetch_traffic_data")
+    @patch("gitlytics.automation.scheduler.fetch_traffic_data")
     def test_zero_rows_do_not_overwrite_existing_history(self, mock_fetch, tmp_path):
         mock_fetch.return_value = _make_df(views=9, clones=4)
         run_sync_cycle("token", data_dir=str(tmp_path))
@@ -283,19 +283,19 @@ class TestExportSafety:
         assert {row["repository"] for row in rows} == {f"user/repo{i}" for i in range(6)}
 
 
-# -- LIB-10 regression: library code raises instead of exiting the process ---
+# Library sync raises TokenExpiredError instead of exiting the process
 
 class TestRunSyncTokenExpiry:
-    @patch("gitlytics.automation._interruptible_sleep")
-    @patch("gitlytics.automation.validate_token")
+    @patch("gitlytics.automation.scheduler._interruptible_sleep")
+    @patch("gitlytics.automation.scheduler.validate_token")
     def test_auth_failure_raises_token_expired_error(self, mock_validate, mock_sleep):
         mock_validate.return_value = (False, "401 Bad credentials")
         with pytest.raises(TokenExpiredError, match="expired, revoked"):
             run_sync("bad-token", schedule_cron="0 0 * * *")
         mock_sleep.assert_called_once()
 
-    @patch("gitlytics.automation._interruptible_sleep")
-    @patch("gitlytics.automation.validate_token")
+    @patch("gitlytics.automation.scheduler._interruptible_sleep")
+    @patch("gitlytics.automation.scheduler.validate_token")
     def test_network_blip_does_not_raise(self, mock_validate, mock_sleep):
         # A non-auth validation failure retries next cycle; stop the loop after
         # the first observation by making the second call terminal.

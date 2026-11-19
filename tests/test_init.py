@@ -27,7 +27,7 @@ from gitlytics import (
 )
 
 
-# ── _coerce_metrics ──────────────────────────────────────────────────────────
+# _coerce_metrics
 
 class TestCoerceMetrics:
     def test_none_returns_none(self):
@@ -58,7 +58,7 @@ class TestCoerceMetrics:
         assert res == ["views", "clones"]
 
 
-# ── _write_json_safely ───────────────────────────────────────────────────────
+# _write_json_safely
 
 class TestWriteJsonSafely:
     def test_writes_to_nested_path(self, tmp_path):
@@ -72,7 +72,7 @@ class TestWriteJsonSafely:
         assert data == payload
 
 
-# ── fetch_traffic ────────────────────────────────────────────────────────────
+# fetch_traffic
 
 class TestFetchTraffic:
     def _sample_df(self):
@@ -98,21 +98,21 @@ class TestFetchTraffic:
             }
         ])
 
-    @patch("gitlytics.fetch_traffic_data")
+    @patch("gitlytics.sdk.fetch_traffic_data")
     def test_return_format_dataframe(self, mock_fetch):
         mock_fetch.return_value = self._sample_df()
         res = fetch_traffic("ghp_fake", return_format="dataframe")
         assert isinstance(res, pd.DataFrame)
         assert len(res) == 1
 
-    @patch("gitlytics.fetch_traffic_data")
-    @patch("gitlytics.print_repo_table")
+    @patch("gitlytics.sdk.fetch_traffic_data")
+    @patch("gitlytics.sdk.print_repo_table")
     def test_print_table_invoked(self, mock_print, mock_fetch):
         mock_fetch.return_value = self._sample_df()
         fetch_traffic("ghp_fake", print_table=True)
         mock_print.assert_called_once()
 
-    @patch("gitlytics.fetch_traffic_data")
+    @patch("gitlytics.sdk.fetch_traffic_data")
     def test_return_format_dataframe_save_csv(self, mock_fetch, tmp_path):
         mock_fetch.return_value = self._sample_df()
         csv_file = str(tmp_path / "out.csv")
@@ -120,7 +120,7 @@ class TestFetchTraffic:
         assert isinstance(res, pd.DataFrame)
         assert Path(csv_file).exists()
 
-    @patch("gitlytics.fetch_traffic_data")
+    @patch("gitlytics.sdk.fetch_traffic_data")
     def test_return_format_dataframe_save_json(self, mock_fetch, tmp_path):
         mock_fetch.return_value = self._sample_df()
         json_file = str(tmp_path / "out.json")
@@ -131,7 +131,7 @@ class TestFetchTraffic:
             data = json.load(f)
         assert "account_totals" in data
 
-    @patch("gitlytics.fetch_traffic_data")
+    @patch("gitlytics.sdk.fetch_traffic_data")
     def test_return_format_timeseries(self, mock_fetch):
         mock_fetch.return_value = self._sample_df()
         res = fetch_traffic("ghp_fake", return_format="timeseries")
@@ -139,7 +139,7 @@ class TestFetchTraffic:
         assert "account_totals" in res
         assert "repositories" in res
 
-    @patch("gitlytics.fetch_traffic_data")
+    @patch("gitlytics.sdk.fetch_traffic_data")
     def test_return_format_timeseries_save_json(self, mock_fetch, tmp_path):
         mock_fetch.return_value = self._sample_df()
         json_file = str(tmp_path / "timeseries.json")
@@ -147,7 +147,7 @@ class TestFetchTraffic:
         assert isinstance(res, dict)
         assert Path(json_file).exists()
 
-    @patch("gitlytics.fetch_traffic_data")
+    @patch("gitlytics.sdk.fetch_traffic_data")
     def test_return_format_summary(self, mock_fetch):
         mock_fetch.return_value = self._sample_df()
         res = fetch_traffic("ghp_fake", return_format="summary")
@@ -155,15 +155,15 @@ class TestFetchTraffic:
         assert "account_totals" in res
 
     def test_invalid_return_format_raises(self):
-        with patch("gitlytics.fetch_traffic_data", return_value=self._sample_df()):
+        with patch("gitlytics.sdk.fetch_traffic_data", return_value=self._sample_df()):
             with pytest.raises(ValueError, match="Invalid return_format"):
                 fetch_traffic("ghp_fake", return_format="invalid_fmt")
 
 
-# ── sync ─────────────────────────────────────────────────────────────────────
+# sync
 
 class TestSync:
-    @patch("gitlytics.run_sync")
+    @patch("gitlytics.sdk.run_sync")
     def test_sync_delegates_to_run_sync(self, mock_run_sync, tmp_path):
         sync(
             token="ghp_fake",
@@ -183,7 +183,7 @@ class TestSync:
         assert kwargs["metrics"] == ["views"]
 
 
-# ── serve_dashboard ──────────────────────────────────────────────────────────
+# serve_dashboard
 
 class TestServeDashboard:
     @patch("uvicorn.run")

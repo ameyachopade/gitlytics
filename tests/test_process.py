@@ -1,6 +1,6 @@
 """
 tests/test_process.py
-Unit tests for gitlytics/process.py — data transformation and payload building.
+Unit tests for gitlytics/process.py - data transformation and payload building.
 All tests are fully offline (no GitHub API calls, no token needed).
 
 Run with:
@@ -21,7 +21,7 @@ from gitlytics.process import (
 )
 
 
-# ── Shared test data ───────────────────────────────────────────────────────────
+# Shared test data
 
 def _make_df(
     repo="user/repo",
@@ -34,7 +34,7 @@ def _make_df(
     referrer="github.com",
     path="/README.md",
 ):
-    """Builds a minimal one-row tidy DataFrame — same shape as fetch_traffic_data returns."""
+    """Builds a minimal one-row tidy DataFrame - same shape as fetch_traffic_data returns."""
     return pd.DataFrame([{
         "date": date,
         "repository": repo,
@@ -56,7 +56,7 @@ def _make_df(
     }])
 
 
-# ── _parse_raw ─────────────────────────────────────────────────────────────────
+# _parse_raw
 
 class TestParseRaw:
     def test_valid_json_string_returns_list(self):
@@ -70,11 +70,11 @@ class TestParseRaw:
         assert result == []
 
     def test_empty_string_returns_empty_list(self):
-        # An empty string means "no data" — return [] not None
+        # An empty string means "no data" - return [] not None
         assert _parse_raw("") == []
 
     def test_none_value_returns_empty_list(self):
-        # None should never crash — just return []
+        # None should never crash - just return []
         assert _parse_raw(None) == []
 
     def test_plain_list_passes_through(self):
@@ -91,7 +91,7 @@ class TestParseRaw:
         assert _parse_raw("[]") == []
 
 
-# ── build_json_payload ─────────────────────────────────────────────────────────
+# build_json_payload
 
 class TestBuildJsonPayload:
     def test_empty_df_returns_empty_structure(self):
@@ -128,7 +128,7 @@ class TestBuildJsonPayload:
         assert result["account_totals"]["total_views"] == 30
 
     def test_stars_not_inflated_across_rows(self):
-        # Stars are a snapshot — summing them across 14 rows would give wrong numbers
+        # Stars are a snapshot - summing them across 14 rows would give wrong numbers
         # build_json_payload should use .iloc[-1], not .sum()
         df = pd.concat([_make_df(stars=50)] * 14, ignore_index=True)  # 14 identical rows
         result = build_json_payload(df, return_format="timeseries")
@@ -171,7 +171,7 @@ class TestBuildJsonPayload:
         assert ts_dates == sorted(ts_dates)
 
 
-# ── build_react_payload ────────────────────────────────────────────────────────
+# build_react_payload
 
 class TestBuildReactPayload:
     def test_empty_df_returns_empty_list(self):
@@ -222,7 +222,7 @@ class TestBuildReactPayload:
         assert result[0]["views"] == 25
 
     def test_stars_not_summed(self):
-        # Stars are a point-in-time snapshot — must use the last row, not sum
+        # Stars are a point-in-time snapshot - must use the last row, not sum
         df = pd.concat([_make_df(stars=100)] * 5, ignore_index=True)
         result = build_react_payload(df)
         assert result[0]["stars"] == 100  # not 500
@@ -249,7 +249,7 @@ class TestBuildReactPayload:
         assert refs[0]["referrer"] == "fallback.com"
 
 
-# ── process_uploaded_csv ───────────────────────────────────────────────────────
+# process_uploaded_csv
 
 class TestProcessUploadedCsv:
     def _make_csv_bytes(self, columns: dict) -> io.BytesIO:
@@ -295,7 +295,7 @@ class TestProcessUploadedCsv:
         result = process_uploaded_csv(csv_file)
         assert "repository" in result.columns
         # Multi-word legacy columns must be mapped to the canonical names
-        # that build_react_payload expects — otherwise views/clones silently
+        # that build_react_payload expects - otherwise views/clones silently
         # default to 0 in the dashboard.
         assert "views" in result.columns
         assert "unique_visitors" in result.columns
@@ -337,7 +337,7 @@ class TestProcessUploadedCsv:
         assert bool(result["is_private"].iloc[0]) is False
 
     def test_is_private_numeric_coerced(self):
-        # Same regression — many external CSV exporters write 1/0
+        # Same regression - many external CSV exporters write 1/0
         # rather than True/False; both must round-trip correctly.
         csv_file = self._make_csv_bytes({
             "date": "2025-06-14",
@@ -400,7 +400,7 @@ class TestProcessUploadedCsv:
         assert result[0]["clones"] == 0
 
     def test_to_bool_recognizes_numpy_bool(self):
-        # LIB-07: numpy.bool_ is not a subclass of Python bool and previously
+        # numpy.bool_ is not a subclass of Python bool and previously
         # fell through to the string/None path, misclassifying private repos.
         assert _to_bool(np.bool_(True)) is True
         assert _to_bool(np.bool_(False)) is False

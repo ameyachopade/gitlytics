@@ -59,7 +59,7 @@ if __name__ == "__main__":
     DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "data_cli"
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
-    # The Python executable running this script — used to invoke CLI as a subprocess
+    # The Python executable running this script - used to invoke CLI as a subprocess
     PYTHON = sys.executable
 
     token = os.environ.get("GITLYTICS_TOKEN") or os.environ.get("GITHUB_TOKEN")
@@ -99,7 +99,7 @@ if __name__ == "__main__":
         )
 
     # ─────────────────────────────────────────────────────────────────────────────
-    # TEST 1 — gitlytics (no args) should print help and exit with code 0
+    # TEST 1 - gitlytics (no args) should print help and exit with code 0
     # ─────────────────────────────────────────────────────────────────────────────
     section("1 / 5  No-args guard")
 
@@ -126,7 +126,7 @@ if __name__ == "__main__":
         fail(f"Subprocess raised: {exc}")
 
     # ─────────────────────────────────────────────────────────────────────────────
-    # TEST 2 — gitlytics fetch (live API call)
+    # TEST 2 - gitlytics fetch (live API call)
     # ─────────────────────────────────────────────────────────────────────────────
     section("2 / 5  `gitlytics fetch` command")
 
@@ -139,7 +139,7 @@ if __name__ == "__main__":
             if "REPOSITORY" in result.stdout or "Fetch successful" in result.stdout:
                 ok("Output contains expected table content")
             else:
-                warn("Output did not contain REPOSITORY header — may have zero repos")
+                warn("Output did not contain REPOSITORY header - may have zero repos")
             info(f"Output preview:\n{result.stdout[:300].strip()}")
         else:
             fail(f"Exited with code {result.returncode}")
@@ -202,7 +202,7 @@ if __name__ == "__main__":
         fail(f"Subprocess raised: {exc}")
 
     # ─────────────────────────────────────────────────────────────────────────────
-    # TEST 3 — gitlytics sync (live API, writes to data/)
+    # TEST 3 - gitlytics sync (live API, writes to data/)
     # ─────────────────────────────────────────────────────────────────────────────
     section("3 / 5  `gitlytics sync` command")
 
@@ -218,14 +218,14 @@ if __name__ == "__main__":
             size = csv_files[0].stat().st_size
             ok(f"Monthly CSV created: {csv_files[0].name} ({size:,} bytes)")
         else:
-            warn("No monthly CSV found — token may have no repos with traffic")
+            warn("No monthly CSV found - token may have no repos with traffic")
     except Exception as exc:
         fail(f"Subprocess raised: {exc}")
 
-    print("\n  [3b] sync again — must not duplicate rows")
+    print("\n  [3b] sync again - must not duplicate rows")
     csv_files = list(DATA_DIR.glob("traffic_????-??.csv"))
     if not csv_files:
-        warn("Skipped — no CSV was created in [3a]")
+        warn("Skipped - no CSV was created in [3a]")
     else:
         import csv as csv_mod
         csv_path = csv_files[0]
@@ -276,7 +276,7 @@ if __name__ == "__main__":
         fail(f"Subprocess raised: {exc}")
 
     # ─────────────────────────────────────────────────────────────────────────────
-    # TEST 4 — gitlytics dashboard (quick smoke test, same as test_module.py)
+    # TEST 4 - gitlytics dashboard (quick smoke test, same as test_module.py)
     # ─────────────────────────────────────────────────────────────────────────────
     section("4 / 5  `gitlytics dashboard` (3-second smoke test)")
 
@@ -302,7 +302,7 @@ if __name__ == "__main__":
             import json as _json
             cfg = _json.loads(resp.read())
         assert "has_token" in cfg
-        ok(f"Dashboard is live — /api/config responded: {cfg}")
+        ok(f"Dashboard is live - /api/config responded: {cfg}")
     except Exception as exc:
         if dashboard_error:
             fail(f"Dashboard crashed: {dashboard_error[0]}")
@@ -312,7 +312,7 @@ if __name__ == "__main__":
     time.sleep(1)  # Let the daemon thread wind down
 
     # ─────────────────────────────────────────────────────────────────────────────
-    # TEST 5 — parse_repo_names (inline logic check, no subprocess needed)
+    # TEST 5 - parse_repo_names (inline logic check, no subprocess needed)
     # ─────────────────────────────────────────────────────────────────────────────
     section("5 / 5  parse_repo_names() edge cases")
 

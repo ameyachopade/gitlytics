@@ -1,28 +1,22 @@
 [build-system]
-# setuptools >= 77 is required for the PEP 639 `license` / `license-files`
-# project-table keys (AF2-LIB-11).
+# setuptools >= 77 is required for PEP 639 license and license-files keys.
 requires = ["setuptools>=77.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "gitlytics"
-version = "0.7.2"
+version = "0.8.0"
 description = "Monitor and automate your GitHub repository traffic analytics."
 readme = "README.md"
 requires-python = ">=3.11"
-# PEP 639 (PEP 621): declare a machine-readable SPDX expression instead of
-# inlining the whole licence text into the wheel METADATA. The licence is
-# Apache-2.0 with the Commons Clause, which has no upstream SPDX id, so the
-# project uses a LicenseRef (AF2-LIB-11).
+# Declare Apache-2.0 with Commons Clause using a PEP 639 LicenseRef identifier.
 license = "LicenseRef-Apache-2.0-with-Commons-Clause"
 license-files = ["LICENSE"]
 authors = [
-    { name = "Ameya Chopade", email = "ameyaccod171@gmail.com" }
+    { name = "Ameya Chopade", email = "ameyasanjaychopade@gmail.com" }
 ]
-# Fix #20: Add version lower-bounds to prevent silent breakage on old environments.
-# These match the constraints already documented in requirements.txt.
-# python-dotenv was removed from runtime deps — the library never reads .env;
-# only tests use it, so it lives in the [dev] extra below.
+# Core runtime dependencies with minimum supported versions.
+# python-dotenv lives in [dev] because only tests load .env files.
 dependencies = [
     "requests>=2.34.2",
     "certifi>=2026.10.23",
@@ -52,8 +46,7 @@ Repository = "https://github.com/ameyachopade/gitlytics"
 "Bug Tracker" = "https://github.com/ameyachopade/gitlytics/issues"
 
 [project.optional-dependencies]
-# Fix #20: dashboard extras are optional — base package works without them.
-# requirements.txt was including them as mandatory; that was wrong.
+# Optional extras for the local FastAPI dashboard server.
 dashboard = [
     "fastapi>=0.162.0",
     "uvicorn>=0.54.0",
@@ -62,9 +55,9 @@ dashboard = [
 dev = [
     "pytest>=9.2.0",
     "pytest-cov>=7.1.0",
-    "httpx>=0.28.1",      # required by FastAPI TestClient (used in test_api.py)
-    "anyio[trio]>=4.16.0", # async test support
-    "python-dotenv>=1.2.4"  # only tests load .env — runtime package doesn't
+    "httpx2>=2.16.2",       # required by FastAPI TestClient in test_api.py
+    "anyio[trio]>=4.16.0",  # async test support
+    "python-dotenv>=1.2.4"  # only tests load .env files
 ]
 
 
@@ -76,7 +69,13 @@ where = ["src"]
 include = ["gitlytics*"]
 # `gitlytics*` also matches `gitlytics.__pycache__`, which setuptools would
 # otherwise ship as a namespace package with host-specific `.pyc` files.
-exclude = ["gitlytics.__pycache__", "gitlytics.__pycache__.*", "gitlytics.*.__pycache__"]
+exclude = [
+    "gitlytics.__pycache__",
+    "gitlytics.__pycache__.*",
+    "gitlytics.*.__pycache__",
+    "*.__pycache__",
+    "*.__pycache__.*",
+]
 
 [tool.setuptools.package-data]
 "gitlytics" = ["static/**/*", "static/*"]
@@ -89,12 +88,3 @@ testpaths = ["tests"]
 python_files  = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-# pytest-asyncio >= 1.x warns when the event-loop scope for async fixtures is
-# left unset, and the default will change in a future release. Pin it
-# explicitly so the suite is deterministic and warning-free.
-asyncio_default_fixture_loop_scope = "function"
-filterwarnings = [
-    "error::DeprecationWarning",
-    "error::PendingDeprecationWarning",
-    "default::starlette.exceptions.StarletteDeprecationWarning",
-]

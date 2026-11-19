@@ -46,7 +46,7 @@ def _stargazer_page(starred_at_list, status: int = 200):
 
 class TestFetchStarHistoryValidation:
     def test_empty_owner_raises_value_error(self):
-        # Bad input must not hit the network — fail fast with ValueError.
+        # Bad input must not hit the network - fail fast with ValueError.
         with pytest.raises(ValueError, match="requires owner"):
             fetch_star_history("", "repo")
 
@@ -55,35 +55,35 @@ class TestFetchStarHistoryValidation:
             fetch_star_history("owner", "")
 
     def test_slash_in_repo_raises_value_error(self):
-        # A repo name like 'a/b/c' is malformed — refuse before the API call.
+        # A repo name like 'a/b/c' is malformed - refuse before the API call.
         with pytest.raises(ValueError, match="no '/'"):
             fetch_star_history("owner", "a/b/c")
 
 
 class TestFetchStarHistoryErrors:
-    @patch("gitlytics.core._http_get")
+    @patch("gitlytics.core.client._http_get")
     def test_429_metadata_raises_github_rate_limit_error(self, mock_get):
-        # The metadata call hits the rate limit — must raise the specific
+        # The metadata call hits the rate limit - must raise the specific
         # GitHubRateLimitError class, not a generic Exception.
         mock_get.return_value = _meta_response(0, status=429)
         with pytest.raises(GitHubRateLimitError, match="rate limit"):
             fetch_star_history("owner", "repo")
 
-    @patch("gitlytics.core._http_get")
+    @patch("gitlytics.core.client._http_get")
     def test_403_metadata_raises_github_rate_limit_error(self, mock_get):
         # 403 with rate-limit semantics must also surface as the rate-limit class.
         mock_get.return_value = _meta_response(0, status=403)
         with pytest.raises(GitHubRateLimitError, match="rate limit"):
             fetch_star_history("owner", "repo")
 
-    @patch("gitlytics.core._http_get")
+    @patch("gitlytics.core.client._http_get")
     def test_500_metadata_raises_star_history_fetch_error(self, mock_get):
-        # 500 is a server error, not a rate limit — must raise StarHistoryFetchError.
+        # 500 is a server error, not a rate limit - must raise StarHistoryFetchError.
         mock_get.return_value = _meta_response(0, status=500)
         with pytest.raises(StarHistoryFetchError, match="metadata"):
             fetch_star_history("owner", "repo")
 
-    @patch("gitlytics.core._http_get")
+    @patch("gitlytics.core.client._http_get")
     def test_zero_stars_returns_single_today_point(self, mock_get):
         # A repo with zero stars returns a single point dated today with total=0.
         mock_get.return_value = _meta_response(0, status=200)
@@ -97,7 +97,7 @@ class TestFetchStarHistoryErrors:
 class TestFetchStarHistorySmallRepo:
     """Repos with <= 200 stars use the fine-grained per-page walk."""
 
-    @patch("gitlytics.core._http_get")
+    @patch("gitlytics.core.client._http_get")
     def test_small_repo_walks_per_star(self, mock_get):
         # 5-star repo: 5 stargazers to walk. Use the small_per_page of 30 so
         # all 5 land in a single page-1 response. GitHub returns stargazers
@@ -123,7 +123,7 @@ class TestFetchStarHistorySmallRepo:
         totals = [p["total"] for p in points]
         assert totals == sorted(totals)
         # All 5 star dates must appear in the timeline. (Today may also
-        # appear as a trailing point, which is expected — the chart's
+        # appear as a trailing point, which is expected - the chart's
         # right edge is always today.)
         dates = {p["date"] for p in points}
         assert {
@@ -136,7 +136,7 @@ class TestFetchStarHistorySmallRepo:
         # Network: metadata + 1 stargazer page.
         assert mock_get.call_count == 2
 
-    @patch("gitlytics.core._http_get")
+    @patch("gitlytics.core.client._http_get")
     def test_small_repo_position_maps_newest_to_highest(self, mock_get):
         # GitHub returns stargazers oldest first.
         # items[0] is the earliest star, items[-1] is the latest.
@@ -167,7 +167,7 @@ class TestFetchStarHistorySmallRepo:
 class TestFetchStarHistoryLargeRepo:
     """Repos with > 200 stars use the 10-page sampling strategy."""
 
-    @patch("gitlytics.core._http_get")
+    @patch("gitlytics.core.client._http_get")
     def test_large_repo_samples_ten_pages(self, mock_get):
         # 5000-star repo: 50 pages of stargazers. The function should pick
         # 10 evenly-spaced pages across the 50-page range, including the
@@ -191,7 +191,7 @@ class TestFetchStarHistoryLargeRepo:
         # Network calls: metadata + 10 stargazer pages.
         assert mock_get.call_count == 11
 
-    @patch("gitlytics.core._http_get")
+    @patch("gitlytics.core.client._http_get")
     def test_large_repo_uses_last_item_per_page(self, mock_get):
         # Lock in the fix: the LAST item in each page is the oldest star
         # in that page, and that is what the chart should sample. If the
@@ -207,7 +207,7 @@ class TestFetchStarHistoryLargeRepo:
             "2018-01-15T00:00:00Z",  # page 16
             "2019-01-15T00:00:00Z",  # page 21
             "2020-01-15T00:00:00Z",  # page 26
-            "2021-01-15T00:00:00Z",  # page 31 — distinctive date
+            "2021-01-15T00:00:00Z",  # page 31 - distinctive date
             "2022-01-15T00:00:00Z",  # page 36
             "2023-01-15T00:00:00Z",  # page 41
             "2024-01-15T00:00:00Z",  # page 46, newest = star #4600
@@ -224,7 +224,7 @@ class TestFetchStarHistoryLargeRepo:
         for d in page_dates:
             assert d[:10] in dates, f"Expected {d[:10]} in timeline, got {dates}"
 
-    @patch("gitlytics.core._http_get")
+    @patch("gitlytics.core.client._http_get")
     def test_large_repo_pages_capped_at_422(self, mock_get):
         # 200,000-star repo: would need 2000 pages, but we cap at 422.
         # Only 10 page requests should be made, and none may reference
@@ -245,7 +245,7 @@ class TestFetchStarHistoryLargeRepo:
         # Metadata + 10 pages = 11 calls total.
         assert mock_get.call_count == 11
 
-    @patch("gitlytics.core._http_get")
+    @patch("gitlytics.core.client._http_get")
     def test_large_repo_429_on_stargazer_page_raises_rate_limit(self, mock_get):
         # If the metadata succeeds but a stargazer page hits 429,
         # the function must raise GitHubRateLimitError (not a generic Exception).
@@ -257,9 +257,9 @@ class TestFetchStarHistoryLargeRepo:
 
 
 class TestFetchStarHistoryRestrictedFallback:
-    """LIB-08: restricted stargazer lists return a documented approximation."""
+    """restricted stargazer lists return a documented approximation."""
 
-    @patch("gitlytics.core._http_get")
+    @patch("gitlytics.core.client._http_get")
     def test_large_repo_404_returns_two_point_approximation(self, mock_get):
         meta = _meta_response(5000, status=200, created_at="2019-03-04T12:00:00Z")
         restricted = _stargazer_page([], status=404)
@@ -271,7 +271,7 @@ class TestFetchStarHistoryRestrictedFallback:
         # One metadata request and one failed stargazer page; no events call.
         assert mock_get.call_count == 2
 
-    @patch("gitlytics.core._http_get")
+    @patch("gitlytics.core.client._http_get")
     def test_small_repo_404_returns_approximation_without_events(self, mock_get):
         meta = _meta_response(3, status=200, created_at="2024-01-01T00:00:00Z")
         restricted = _stargazer_page([], status=404)
@@ -281,7 +281,7 @@ class TestFetchStarHistoryRestrictedFallback:
         assert points[-1]["total"] == 3
         assert mock_get.call_count == 2
 
-    @patch("gitlytics.core._http_get")
+    @patch("gitlytics.core.client._http_get")
     def test_restriction_is_negatively_cached(self, mock_get):
         meta = _meta_response(5000, status=200, created_at="2019-03-04T12:00:00Z")
         restricted = _stargazer_page([], status=404)
@@ -292,7 +292,7 @@ class TestFetchStarHistoryRestrictedFallback:
         # Second call fetched metadata only; no stargazer page was attempted.
         assert mock_get.call_count == 3
 
-    @patch("gitlytics.core._http_get")
+    @patch("gitlytics.core.client._http_get")
     def test_events_fallback_anchors_to_live_total(self, mock_get):
         meta = _meta_response(500, status=200, created_at="2020-01-01T00:00:00Z")
         empty_page = _stargazer_page([], status=200)
@@ -312,7 +312,7 @@ class TestFetchStarHistoryRestrictedFallback:
 
 
 class TestFetchStarHistoryTokenOptional:
-    @patch("gitlytics.core._http_get")
+    @patch("gitlytics.core.client._http_get")
     def test_no_token_still_works_for_public_repos(self, mock_get):
         # Public reads do not need auth. The function should pass through
         # without raising even when token=None.

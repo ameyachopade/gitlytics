@@ -192,14 +192,18 @@ gitlytics sync --token "ghp_your_token" --data-dir "./data"
 # 4. Schedule automatic sync as a background cron job (e.g. daily at 11 PM)
 gitlytics sync --token "ghp_your_token" --data-dir "./data" --schedule-cron "0 23 * * *"
 
-# 5. Launch the React + FastAPI web analytics studio
+# 5. Launch the React + FastAPI web analytics studio (loopback 127.0.0.1 by default)
 gitlytics dashboard
+
+# 5b. Bind to a non-loopback interface (requires explicit --public-bind; disables pre-loaded tokens)
+gitlytics dashboard --host 0.0.0.0 --public-bind
 
 # 6. Retrieve cumulative stargazer trajectory for a repository
 gitlytics stars owner/repo --token "ghp_your_token"
 ```
 
 > **CLI output contract:** the traffic table and the success summary go to **stdout**; every error and warning goes to **stderr**. Exit codes are meaningful - `0` success, `1` runtime/upstream failure, `2` bad input - so `gitlytics fetch ... > out.csv` never mixes diagnostics into your data.
+> **Dashboard security:** `gitlytics dashboard` binds to `127.0.0.1` by default, does not promote ambient `GITHUB_TOKEN` automatically, and disables `--token`/`GITLYTICS_TOKEN` on `--public-bind` so remote users must authenticate with their own token. See [`SECURITY.md`](SECURITY.md) for details.
 
 ---
 
@@ -291,6 +295,6 @@ If Gitlytics has saved your repository data or elevated your profile, please con
 
 ---
 
-## 📄 License
+## 📄 License & Security
 
-Distributed under **Apache License 2.0 + Commons Clause v1.0**. See [`LICENSE`](LICENSE) for full details.
+Distributed under **Apache License 2.0 + Commons Clause v1.0**. See [`LICENSE`](LICENSE) for full details and [`SECURITY.md`](SECURITY.md) for our security policy and vulnerability reporting process.

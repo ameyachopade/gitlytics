@@ -3,7 +3,7 @@ live_username.py
 Online integration test for the username-mode feature.
 Tests both the core functions and the /api/username FastAPI endpoint.
 
-No GitHub token is required — username mode is public.
+No GitHub token is required - username mode is public.
 
 Usage:
     python tests/live_username.py [username]
@@ -60,13 +60,13 @@ if __name__ == "__main__":
         from fastapi.testclient import TestClient
         client = TestClient(app)
         HAS_CLIENT = True
-        ok("FastAPI TestClient available — /api/username endpoint tests enabled")
+        ok("FastAPI TestClient available - /api/username endpoint tests enabled")
     except Exception as exc:
         HAS_CLIENT = False
-        warn(f"FastAPI TestClient unavailable ({exc}) — skipping endpoint tests")
+        warn(f"FastAPI TestClient unavailable ({exc}) - skipping endpoint tests")
 
     # ─────────────────────────────────────────────────────────────────────────
-    # TEST 1 — get_public_user()
+    # TEST 1 - get_public_user()
     # ─────────────────────────────────────────────────────────────────────────
     section(f"1 / 4  get_public_user('{USERNAME}')")
 
@@ -93,19 +93,19 @@ if __name__ == "__main__":
         else:
             ok(f"All {len(REQUIRED_PROFILE_FIELDS)} required profile fields present")
     else:
-        warn("Skipped — no profile returned in [1a]")
+        warn("Skipped - no profile returned in [1a]")
 
     print(f"\n  [1c] Fetch profile for non-existent user '{MISSING}'")
     try:
         get_public_user(MISSING)
-        fail("Expected ValueError — no exception was raised")
+        fail("Expected ValueError - no exception was raised")
     except ValueError as exc:
         ok(f"Correctly raised ValueError: {exc}")
     except Exception as exc:
         fail(f"Wrong exception type: {type(exc).__name__}: {exc}")
 
     # ─────────────────────────────────────────────────────────────────────────
-    # TEST 2 — get_public_repos()
+    # TEST 2 - get_public_repos()
     # ─────────────────────────────────────────────────────────────────────────
     section(f"2 / 4  get_public_repos('{USERNAME}')")
 
@@ -120,7 +120,7 @@ if __name__ == "__main__":
             info(f"Most starred: {top['full_name']} ★{top['stargazers_count']}")
             info(f"Languages: {sorted({r.get('language') for r in repos if r.get('language')})}")
         else:
-            warn("Repo list is empty — user may have no public repos")
+            warn("Repo list is empty - user may have no public repos")
     except Exception as exc:
         fail(f"get_public_repos('{USERNAME}') raised: {exc}")
 
@@ -137,9 +137,9 @@ if __name__ == "__main__":
         else:
             ok(f"All {len(REQUIRED_REPO_FIELDS)} required repo fields present")
     else:
-        warn("Skipped — no repos to validate")
+        warn("Skipped - no repos to validate")
 
-    print(f"\n  [2c] Fetch repos for non-existent user '{MISSING}' — must return []")
+    print(f"\n  [2c] Fetch repos for non-existent user '{MISSING}' - must return []")
     try:
         result = get_public_repos(MISSING)
         if result == []:
@@ -150,12 +150,12 @@ if __name__ == "__main__":
         fail(f"get_public_repos raised instead of returning []: {exc}")
 
     # ─────────────────────────────────────────────────────────────────────────
-    # TEST 3 — /api/username endpoint (requires FastAPI TestClient)
+    # TEST 3 - /api/username endpoint (requires FastAPI TestClient)
     # ─────────────────────────────────────────────────────────────────────────
     section("3 / 4  /api/username endpoint")
 
     if not HAS_CLIENT:
-        warn("Skipped — FastAPI TestClient not available (pip install httpx)")
+        warn("Skipped - FastAPI TestClient not available (pip install httpx2)")
     else:
         print(f"\n  [3a] POST /api/username  username='{USERNAME}'")
         try:
@@ -205,7 +205,7 @@ if __name__ == "__main__":
             fail(f"Whitespace username test raised: {exc}")
 
     # ─────────────────────────────────────────────────────────────────────────
-    # TEST 4 — Edge cases and data integrity
+    # TEST 4 - Edge cases and data integrity
     # ─────────────────────────────────────────────────────────────────────────
     section("4 / 4  Data integrity checks")
 
@@ -218,7 +218,7 @@ if __name__ == "__main__":
         else:
             ok(f"All {len(repos)} repos have valid non-negative star counts")
     else:
-        warn("Skipped — no repos fetched")
+        warn("Skipped - no repos fetched")
 
     print("\n  [4b] all full_name values follow 'user/repo' format")
     if repos:
@@ -228,7 +228,7 @@ if __name__ == "__main__":
         else:
             ok("All full_name values are in 'user/repo' format")
     else:
-        warn("Skipped — no repos fetched")
+        warn("Skipped - no repos fetched")
 
     print("\n  [4c] topics field is always a list (not None)")
     if repos:
@@ -238,16 +238,16 @@ if __name__ == "__main__":
         else:
             ok("All repos have a list for 'topics'")
     else:
-        warn("Skipped — no repos fetched")
+        warn("Skipped - no repos fetched")
 
     print(f"\n  [4d] profile created_at is not empty for '{USERNAME}'")
     if profile:
         if profile.get("created_at"):
             ok(f"created_at present: {profile['created_at']}")
         else:
-            warn("created_at is empty — may be a private field for this user")
+            warn("created_at is empty - may be a private field for this user")
     else:
-        warn("Skipped — no profile fetched")
+        warn("Skipped - no profile fetched")
 
     # ── Summary ────────────────────────────────────────────────────────────────
     section("Done")

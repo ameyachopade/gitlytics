@@ -24,10 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 import pandas as pd
 import requests
 
-# ── Offline tripwire (AF2-LIB-06) ───────────────────────────────────────────
-# This harness is documented as OFFLINE. Patch the single choke point every
-# `requests` call funnels through so an unmocked request fails loudly instead
-# of silently hitting api.github.com.
+# Offline tripwire: block all unmocked requests calls so this harness never hits the network.
 _real_send = requests.Session.send
 
 
@@ -90,7 +87,7 @@ run_test("gitlytics", "_write_json_safely", test_write_json_safely)
 
 def test_fetch_traffic():
     dummy_df = pd.DataFrame([{"date": "2026-06-01", "repository": "u/r", "views": 5, "is_private": False}])
-    with patch("gitlytics.fetch_traffic_data", return_value=dummy_df):
+    with patch("gitlytics.sdk.fetch_traffic_data", return_value=dummy_df):
         df = gitlytics.fetch_traffic("ghp_fake", return_format="dataframe")
         assert isinstance(df, pd.DataFrame)
         ts = gitlytics.fetch_traffic("ghp_fake", return_format="timeseries")
@@ -98,7 +95,7 @@ def test_fetch_traffic():
 run_test("gitlytics", "fetch_traffic", test_fetch_traffic)
 
 def test_sync():
-    with patch("gitlytics.run_sync") as mock_rs:
+    with patch("gitlytics.sdk.run_sync") as mock_rs:
         gitlytics.sync("ghp_fake", repo_name="u/r")
         mock_rs.assert_called_once()
 run_test("gitlytics", "sync", test_sync)
@@ -129,7 +126,7 @@ def test_make_headers():
 run_test("gitlytics.core", "make_headers", test_make_headers)
 
 def test_validate_token():
-    with patch("gitlytics.core._http_get") as mock_g:
+    with patch("gitlytics.core.client._http_get") as mock_g:
         mock_g.return_value.status_code = 200
         mock_g.return_value.json.return_value = {"login": "ameyachopade"}
         ok, user = gitlytics.core.validate_token("tok123")
@@ -137,7 +134,7 @@ def test_validate_token():
 run_test("gitlytics.core", "validate_token", test_validate_token)
 
 def test_get_user_profile():
-    with patch("gitlytics.core._http_get") as mock_g:
+    with patch("gitlytics.core.client._http_get") as mock_g:
         mock_g.return_value.status_code = 200
         mock_g.return_value.json.return_value = {"login": "ameya", "name": "Ameya Chopade", "followers": 10}
         p = gitlytics.core.get_user_profile("tok123")
@@ -154,7 +151,7 @@ def test_validate_github_username():
 run_test("gitlytics.core", "validate_github_username", test_validate_github_username)
 
 def test_get_public_user():
-    with patch("gitlytics.core._http_get") as mock_g:
+    with patch("gitlytics.core.client._http_get") as mock_g:
         mock_g.return_value.status_code = 200
         mock_g.return_value.json.return_value = {"login": "torvalds", "public_repos": 12}
         u = gitlytics.core.get_public_user("torvalds")
@@ -168,7 +165,7 @@ def test_normalise_repo():
 run_test("gitlytics.core", "_normalise_repo", test_normalise_repo)
 
 def test_fetch_public_repos_by_updated():
-    with patch("gitlytics.core._http_get") as mock_g:
+    with patch("gitlytics.core.client._http_get") as mock_g:
         mock_g.return_value.status_code = 200
         mock_g.return_value.json.return_value = [{"name": "repoA", "full_name": "u/repoA"}]
         repos = gitlytics.core._fetch_public_repos_by_updated("user", 10)
@@ -176,7 +173,7 @@ def test_fetch_public_repos_by_updated():
 run_test("gitlytics.core", "_fetch_public_repos_by_updated", test_fetch_public_repos_by_updated)
 
 def test_fetch_public_repos_by_stars():
-    with patch("gitlytics.core._http_get") as mock_g:
+    with patch("gitlytics.core.client._http_get") as mock_g:
         mock_g.return_value.status_code = 200
         mock_g.return_value.json.return_value = {"items": [{"name": "repoB", "full_name": "u/repoB"}]}
         repos = gitlytics.core._fetch_public_repos_by_stars("user", 10)
@@ -184,15 +181,15 @@ def test_fetch_public_repos_by_stars():
 run_test("gitlytics.core", "_fetch_public_repos_by_stars", test_fetch_public_repos_by_stars)
 
 def test_get_public_repos():
-    with patch("gitlytics.core._fetch_public_repos_by_updated", return_value=[{"full_name": "u/r1", "stargazers_count": 5}]):
-        with patch("gitlytics.core._fetch_public_repos_by_stars", return_value=[{"full_name": "u/r2", "stargazers_count": 10}]):
+    with patch("gitlytics.core.users._fetch_public_repos_by_updated", return_value=[{"full_name": "u/r1", "stargazers_count": 5}]):
+        with patch("gitlytics.core.users._fetch_public_repos_by_stars", return_value=[{"full_name": "u/r2", "stargazers_count": 10}]):
             res = gitlytics.core.get_public_repos("user", max_repos=5)
             assert len(res) == 2
             assert res[0]["full_name"] == "u/r2"
 run_test("gitlytics.core", "get_public_repos", test_get_public_repos)
 
 def test_safe_get():
-    with patch("gitlytics.core._http_get") as mock_g:
+    with patch("gitlytics.core.client._http_get") as mock_g:
         mock_g.return_value.status_code = 200
         mock_g.return_value.json.return_value = {"key": "val"}
         data, status = gitlytics.core._safe_get("http://fake", {})
@@ -200,7 +197,7 @@ def test_safe_get():
 run_test("gitlytics.core", "_safe_get", test_safe_get)
 
 def test_count_via_link_header():
-    with patch("gitlytics.core._http_get") as mock_g:
+    with patch("gitlytics.core.client._http_get") as mock_g:
         mock_g.return_value.status_code = 200
         mock_g.return_value.headers = {"Link": '<https://api.github.com?page=42>; rel="last"'}
         count = gitlytics.core._count_via_link_header("http://fake", {})
@@ -208,12 +205,12 @@ def test_count_via_link_header():
 run_test("gitlytics.core", "_count_via_link_header", test_count_via_link_header)
 
 def test_get_deep_repo_stats():
-    with patch("gitlytics.core._safe_get", side_effect=[
+    with patch("gitlytics.core.client._safe_get", side_effect=[
         ([{"total": 100}], 200),  # commit activity
         ({"files": {"readme": {"url": "x"}}}, 200),  # community profile
     ]):
-        with patch("gitlytics.core._count_via_link_header", return_value=3):
-            with patch("gitlytics.core._http_get") as mock_rel:
+        with patch("gitlytics.core.client._count_via_link_header", return_value=3):
+            with patch("gitlytics.core.client._http_get") as mock_rel:
                 mock_rel.return_value.status_code = 200
                 mock_rel.return_value.headers = {}
                 mock_rel.return_value.json.return_value = [{"published_at": "2026-01-01"}]
@@ -223,13 +220,13 @@ def test_get_deep_repo_stats():
 run_test("gitlytics.core", "get_deep_repo_stats", test_get_deep_repo_stats)
 
 def test_fetch_deep_stats_for_top():
-    with patch("gitlytics.core.get_deep_repo_stats", return_value={"total_commits": 50}):
+    with patch("gitlytics.core.repos.get_deep_repo_stats", return_value={"total_commits": 50}):
         res = gitlytics.core.fetch_deep_stats_for_top("tok", [{"repository": "u/r", "total_views": 100}], top_n=1)
         assert "u/r" in res
 run_test("gitlytics.core", "fetch_deep_stats_for_top", test_fetch_deep_stats_for_top)
 
 def test_get_all_repos():
-    with patch("gitlytics.core._safe_get", side_effect=[
+    with patch("gitlytics.core.client._safe_get", side_effect=[
         ([{"full_name": f"u/r{i}"} for i in range(100)], 200),
         ([{"full_name": "u/r101"}], 200),
     ]):
@@ -238,7 +235,7 @@ def test_get_all_repos():
 run_test("gitlytics.core", "get_all_repos", test_get_all_repos)
 
 def test_get_single_repo():
-    with patch("gitlytics.core._safe_get", return_value=({"name": "r1", "full_name": "u/r1"}, 200)):
+    with patch("gitlytics.core.client._safe_get", return_value=({"name": "r1", "full_name": "u/r1"}, 200)):
         r = gitlytics.core.get_single_repo("tok", "u/r1")
         assert r["name"] == "r1"
 run_test("gitlytics.core", "get_single_repo", test_get_single_repo)
@@ -249,21 +246,20 @@ def test_star_headers():
 run_test("gitlytics.core", "_star_headers", test_star_headers)
 
 def test_fetch_star_history():
-    with patch("gitlytics.core._safe_get", return_value=({"stargazers_count": 0}, 200)):
+    with patch("gitlytics.core.client._safe_get", return_value=({"stargazers_count": 0}, 200)):
         pts = gitlytics.core.fetch_star_history("owner", "repo")
         assert len(pts) == 1 and pts[0]["total"] == 0
 run_test("gitlytics.core", "fetch_star_history", test_fetch_star_history)
 
 def test_get_repo_traffic():
-    # `_count_via_link_header` issues a real HTTP request — it must be mocked
-    # so this "offline" harness never touches the network (AF2-LIB-06).
-    with patch("gitlytics.core._safe_get", side_effect=[
+    # Mock _count_via_link_header so this offline harness never hits the network.
+    with patch("gitlytics.core.client._safe_get", side_effect=[
         ({"views": []}, 200),
         ({"clones": []}, 200),
         ([], 200),
         ([], 200),
     ]):
-        with patch("gitlytics.core._count_via_link_header", return_value=0):
+        with patch("gitlytics.core.client._count_via_link_header", return_value=0):
             tr = gitlytics.core.get_repo_traffic("tok", "u/r")
             assert "views" in tr and "clones" in tr
 run_test("gitlytics.core", "get_repo_traffic", test_get_repo_traffic)
@@ -282,8 +278,8 @@ def test_build_tidy_rows():
 run_test("gitlytics.core", "build_tidy_rows", test_build_tidy_rows)
 
 def test_fetch_traffic_data():
-    with patch("gitlytics.core.get_single_repo", return_value={"full_name": "u/r", "private": False}):
-        with patch("gitlytics.core.get_repo_traffic", return_value={"views": {}, "clones": {}}):
+    with patch("gitlytics.core.traffic.get_single_repo", return_value={"full_name": "u/r", "private": False}):
+        with patch("gitlytics.core.traffic.get_repo_traffic", return_value={"views": {}, "clones": {}}):
             df = gitlytics.core.fetch_traffic_data("tok", repo_names=["u/r"])
             assert isinstance(df, pd.DataFrame)
             assert len(df) == 15
@@ -410,7 +406,7 @@ run_test("gitlytics.automation", "_write_df_to_csv", test_write_df_to_csv)
 def test_run_sync_cycle():
     with tempfile.TemporaryDirectory() as td:
         df = pd.DataFrame([{"date": "2026-06-01", "repository": "u/r", "views": 5}])
-        with patch("gitlytics.automation.fetch_traffic_data", return_value=df):
+        with patch("gitlytics.automation.scheduler.fetch_traffic_data", return_value=df):
             gitlytics.automation.run_sync_cycle("tok", data_dir=td, output_mode="monthly")
             csvs = list(Path(td).glob("traffic_*.csv"))
             assert len(csvs) == 1
@@ -423,7 +419,7 @@ def test_interruptible_sleep():
 run_test("gitlytics.automation", "_interruptible_sleep", test_interruptible_sleep)
 
 def test_run_sync():
-    with patch("gitlytics.automation.run_sync_cycle") as mock_cycle:
+    with patch("gitlytics.automation.scheduler.run_sync_cycle") as mock_cycle:
         gitlytics.automation.run_sync("tok", schedule_cron=None)
         mock_cycle.assert_called_once()
 run_test("gitlytics.automation", "run_sync", test_run_sync)
@@ -450,7 +446,7 @@ def test_get_token():
 run_test("gitlytics.api", "_get_token", test_get_token)
 
 def test_validate_token_cached():
-    with patch("gitlytics.api.validate_token", return_value=(True, "cached_user")) as mock_v:
+    with patch("gitlytics.api.cache.validate_token", return_value=(True, "cached_user")) as mock_v:
         ok1, u1 = gitlytics.api._validate_token_cached("tok_c")
         ok2, u2 = gitlytics.api._validate_token_cached("tok_c")
         assert ok1 and ok2 and u1 == u2 == "cached_user"
@@ -464,30 +460,30 @@ def test_get_config():
 run_test("gitlytics.api", "get_config", test_get_config)
 
 def test_auth():
-    with patch("gitlytics.api.validate_token", return_value=(True, "test_user")):
-        with patch("gitlytics.api.get_user_profile", return_value={"login": "test_user", "name": "Tester", "avatar_url": ""}):
+    with patch("gitlytics.api.routes.validate_token", return_value=(True, "test_user")):
+        with patch("gitlytics.api.routes.get_user_profile", return_value={"login": "test_user", "name": "Tester", "avatar_url": ""}):
             r = client.post("/api/auth", json={"token": "valid_tok"})
             assert r.status_code == 200
             assert r.json()["authenticated"] is True
 run_test("gitlytics.api", "auth", test_auth)
 
 def test_get_username_data():
-    with patch("gitlytics.api.get_public_user", return_value={"login": "torvalds"}):
-        with patch("gitlytics.api.get_public_repos", return_value=[]):
+    with patch("gitlytics.api.routes.get_public_user", return_value={"login": "torvalds"}):
+        with patch("gitlytics.api.routes.get_public_repos", return_value=[]):
             r = client.post("/api/username", json={"username": "torvalds"})
             assert r.status_code == 200
             assert "profile" in r.json()
 run_test("gitlytics.api", "get_username_data", test_get_username_data)
 
 def test_get_traffic():
-    with patch("gitlytics.api._validate_token_cached", return_value=(True, "user")):
-        with patch("gitlytics.api.fetch_traffic_data", return_value=pd.DataFrame()):
+    with patch("gitlytics.api.cache._validate_token_cached", return_value=(True, "user")):
+        with patch("gitlytics.api.cache.fetch_traffic_data", return_value=pd.DataFrame()):
             r = client.post("/api/traffic", json={"token": "valid_tok"})
             assert r.status_code == 200
 run_test("gitlytics.api", "get_traffic", test_get_traffic)
 
 def test_get_star_history_endpoint():
-    with patch("gitlytics.api.fetch_star_history", return_value=[{"date": "2026-01-01", "total": 5}]):
+    with patch("gitlytics.api.routes.fetch_star_history", return_value=[{"date": "2026-01-01", "total": 5}]):
         r = client.get("/api/star-history?owner=u&repo=r", headers={"authorization": "Bearer tok"})
         assert r.status_code == 200
         assert r.json()["points"] == [{"date": "2026-01-01", "total": 5}]

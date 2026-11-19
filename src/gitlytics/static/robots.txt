@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://dashboard.gitlytics.dev/sitemap.xml

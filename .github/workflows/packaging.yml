@@ -1,0 +1,62 @@
+name: Packaging & Base Install
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' }}
+
+jobs:
+  wheel-and-base-install:
+    name: Build wheel and verify base install
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c # v5.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install --no-cache-dir build==1.2.2.post1
+          rm -rf build dist
+          python -m build
+
+      - name: Verify bundled static assets inside wheel
+        run: |
+          python - <<'PY'
+          import pathlib, zipfile
+
+          whl = next(pathlib.Path("dist").glob("*.whl"))
+          with zipfile.ZipFile(whl) as zf:
+              names = zf.namelist()
+              assert "gitlytics/static/index.html" in names, "missing static/index.html in wheel"
+              entries = [
+                  n for n in names
+                  if n.startswith("gitlytics/static/assets/index-") and n.endswith(".js")
+              ]
+              assert entries, "missing entry JS bundle in wheel"
+              bundle = zf.read(entries[0]).decode("utf-8", errors="replace")
+              assert "http://localhost:8000" not in bundle, "wheel must not bake localhost:8000"
+              assert "VITE_BACKEND_URL must be set" not in bundle, "wheel must be built in local mode"
+          PY
+
+      - name: Install base wheel without dashboard extras and smoke-test
+        run: |
+          python -m venv /tmp/base-venv
+          /tmp/base-venv/bin/python -m pip install --no-cache-dir dist/*.whl
+          /tmp/base-venv/bin/python -c "import gitlytics; print(gitlytics.__version__)"
+          /tmp/base-venv/bin/gitlytics --help > /dev/null

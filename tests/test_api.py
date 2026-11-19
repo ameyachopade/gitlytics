@@ -1,13 +1,13 @@
 """
 tests/test_api.py
-Unit tests for gitlytics/api.py — FastAPI endpoints.
+Unit tests for gitlytics/api.py - FastAPI endpoints.
 Uses FastAPI's TestClient so no running server or GitHub token is needed.
 All GitHub API calls are mocked.
 
 Run with:
     python -m pytest tests/test_api.py -v
 
-Note: requires httpx  →  pip install httpx
+Note: requires httpx2  →  pip install httpx2
 """
 import io
 import json
@@ -15,7 +15,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 import pandas as pd
 
-# TestClient requires httpx — skip the whole module gracefully if not installed
+# TestClient requires httpx2 - skip the whole module gracefully if not installed
 try:
     from fastapi.testclient import TestClient
     from gitlytics.api import app
@@ -25,14 +25,14 @@ except Exception:
 
 pytestmark = pytest.mark.skipif(
     not HAS_TESTCLIENT,
-    reason="httpx not installed — run: pip install httpx"
+    reason="httpx2 not installed - run: pip install httpx2"
 )
 
-# One shared client for all tests — no server startup needed
+# One shared client for all tests - no server startup needed
 client = TestClient(app, raise_server_exceptions=True)
 
 
-# ── Helper factories ───────────────────────────────────────────────────────────
+# Helper factories
 
 def _make_tidy_df(repo="user/repo", views=10, clones=5, is_private=False):
     """Builds a minimal one-row tidy DataFrame as returned by fetch_traffic_data."""
@@ -63,7 +63,7 @@ def _make_csv_body(headers, row):
     return io.BytesIO(content.encode("utf-8"))
 
 
-# ── /api/config ────────────────────────────────────────────────────────────────
+# /api/config
 
 class TestConfigEndpoint:
     def test_returns_200(self):
@@ -91,11 +91,11 @@ class TestConfigEndpoint:
         assert "has_data_dir" in data
 
 
-# ── /api/auth ──────────────────────────────────────────────────────────────────
+# /api/auth
 
 class TestAuthEndpoint:
-    @patch("gitlytics.api.validate_token", return_value=(True, "ameyachopade"))
-    @patch("gitlytics.api.get_user_profile", return_value={
+    @patch("gitlytics.api.routes.validate_token", return_value=(True, "ameyachopade"))
+    @patch("gitlytics.api.routes.get_user_profile", return_value={
         "login": "ameyachopade", "name": "Ameya Chopade", "avatar_url": "https://avatars.github.com/u/1"
     })
     def test_valid_token_returns_authenticated(self, mock_profile, mock_validate):
@@ -108,7 +108,7 @@ class TestAuthEndpoint:
         assert data["name"] == "Ameya Chopade"
         assert "avatar_url" in data
 
-    @patch("gitlytics.api.validate_token", return_value=(False, "Invalid token — 401 Unauthorized."))
+    @patch("gitlytics.api.routes.validate_token", return_value=(False, "Invalid token - 401 Unauthorized."))
     def test_invalid_token_returns_401(self, mock_validate):
         # A bad or expired token must return HTTP 401
         response = client.post("/api/auth", json={"token": "bad_token"})
@@ -122,43 +122,43 @@ class TestAuthEndpoint:
             response = client.post("/api/auth", json={"token": ""})
         assert response.status_code == 401
 
-    @patch("gitlytics.api.validate_token", return_value=(True, "ameyachopade"))
-    @patch("gitlytics.api.get_user_profile", return_value={
+    @patch("gitlytics.api.routes.validate_token", return_value=(True, "ameyachopade"))
+    @patch("gitlytics.api.routes.get_user_profile", return_value={
         "login": "ameyachopade", "name": "Ameya Chopade", "avatar_url": "https://avatars.github.com/u/1"
     })
     def test_response_has_all_profile_fields(self, mock_profile, mock_validate):
-        # The dashboard needs login, name, and avatar_url — all three must be present
+        # The dashboard needs login, name, and avatar_url - all three must be present
         data = client.post("/api/auth", json={"token": "valid_token"}).json()
         assert "username" in data
         assert "name" in data
         assert "avatar_url" in data
 
-    @patch("gitlytics.api.validate_token", return_value=(True, "ameyachopade"))
-    @patch("gitlytics.api.get_user_profile", return_value={
+    @patch("gitlytics.api.routes.validate_token", return_value=(True, "ameyachopade"))
+    @patch("gitlytics.api.routes.get_user_profile", return_value={
         "login": "ameyachopade", "name": "", "avatar_url": ""
     })
     def test_null_display_name_falls_back_to_login(self, mock_profile, mock_validate):
         # If the user has no display name set on GitHub, fall back to their username
         data = client.post("/api/auth", json={"token": "valid_token"}).json()
-        # name should never be blank — it should fall back to username
+        # name should never be blank - it should fall back to username
         assert data["name"] or data["username"]  # at least one must be non-empty
 
 
-# ── /api/traffic ───────────────────────────────────────────────────────────────
+# /api/traffic
 
 class TestTrafficEndpoint:
-    @patch("gitlytics.api.validate_token", return_value=(True, "user"))
-    @patch("gitlytics.api._validate_token_cached", return_value=(True, "user"))
-    @patch("gitlytics.api.fetch_traffic_data", return_value=_make_tidy_df())
+    @patch("gitlytics.api.cache.validate_token", return_value=(True, "user"))
+    @patch("gitlytics.api.cache._validate_token_cached", return_value=(True, "user"))
+    @patch("gitlytics.api.cache.fetch_traffic_data", return_value=_make_tidy_df())
     def test_valid_token_returns_list(self, mock_fetch, mock_cached, mock_validate):
         # The traffic endpoint must return a list of repo objects
         response = client.post("/api/traffic", json={"token": "valid_token"})
         assert response.status_code == 200
         assert isinstance(response.json(), list)
 
-    @patch("gitlytics.api.validate_token", return_value=(True, "user"))
-    @patch("gitlytics.api._validate_token_cached", return_value=(True, "user"))
-    @patch("gitlytics.api.fetch_traffic_data", return_value=_make_tidy_df())
+    @patch("gitlytics.api.cache.validate_token", return_value=(True, "user"))
+    @patch("gitlytics.api.cache._validate_token_cached", return_value=(True, "user"))
+    @patch("gitlytics.api.cache.fetch_traffic_data", return_value=_make_tidy_df())
     def test_repo_objects_have_required_fields(self, mock_fetch, mock_cached, mock_validate):
         # Each repo object must include the fields the React dashboard depends on
         response = client.post("/api/traffic", json={"token": "valid_token"})
@@ -168,7 +168,7 @@ class TestTrafficEndpoint:
         for field in ["repository", "views", "clones", "stars", "forks"]:
             assert field in repo, f"Missing field: {field}"
 
-    @patch("gitlytics.api.validate_token", return_value=(False, "Bad token"))
+    @patch("gitlytics.api.cache.validate_token", return_value=(False, "Bad token"))
     def test_invalid_token_returns_401(self, mock_validate):
         # A bad token must return 401, not crash or return empty data
         response = client.post("/api/traffic", json={"token": "bad_token"})
@@ -182,21 +182,21 @@ class TestTrafficEndpoint:
             response = client.post("/api/traffic", json={"token": ""})
         assert response.status_code == 401
 
-    @patch("gitlytics.api.validate_token", return_value=(True, "user"))
-    @patch("gitlytics.api._validate_token_cached", return_value=(True, "user"))
-    @patch("gitlytics.api.fetch_traffic_data", return_value=pd.DataFrame())
+    @patch("gitlytics.api.cache.validate_token", return_value=(True, "user"))
+    @patch("gitlytics.api.cache._validate_token_cached", return_value=(True, "user"))
+    @patch("gitlytics.api.cache.fetch_traffic_data", return_value=pd.DataFrame())
     def test_empty_data_returns_empty_list(self, mock_fetch, mock_cached, mock_validate):
         # If the user has no repos, the endpoint must return [] not crash
         response = client.post("/api/traffic", json={"token": "valid_token"})
         assert response.status_code == 200
         assert response.json() == []
 
-    @patch("gitlytics.api.validate_token", return_value=(True, "user"))
-    @patch("gitlytics.api._validate_token_cached", return_value=(True, "user"))
-    @patch("gitlytics.api.fetch_traffic_data")
-    @patch("gitlytics.api.pd.read_csv")
-    @patch("gitlytics.api.Path.glob")
-    @patch("gitlytics.api.Path.exists", return_value=True)
+    @patch("gitlytics.api.cache.validate_token", return_value=(True, "user"))
+    @patch("gitlytics.api.cache._validate_token_cached", return_value=(True, "user"))
+    @patch("gitlytics.api.cache.fetch_traffic_data")
+    @patch("gitlytics.api.cache.pd.read_csv")
+    @patch("gitlytics.api.routes.Path.glob")
+    @patch("gitlytics.api.routes.Path.exists", return_value=True)
     def test_merges_csv_and_live_traffic(
         self, mock_exists, mock_glob, mock_read_csv, mock_fetch, mock_cached, mock_validate
     ):
@@ -257,7 +257,7 @@ class TestTrafficEndpoint:
         assert "2026-06-14" in timestamps
 
 
-# ── /api/upload-csv ────────────────────────────────────────────────────────────
+# /api/upload-csv
 
 class TestUploadCsvEndpoint:
     def _upload(self, headers, row):
@@ -327,7 +327,7 @@ class TestUploadCsvEndpoint:
         assert list(data_dir.iterdir()) == []
 
 
-# ── Root and SPA fallback ──────────────────────────────────────────────────────
+# Root and SPA fallback
 
 class TestRootEndpoint:
     def test_root_returns_200_or_503(self):
@@ -336,7 +336,7 @@ class TestRootEndpoint:
         assert response.status_code in (200, 503)
 
     def test_unknown_path_returns_200_or_503(self):
-        # Any unknown path goes to the SPA fallback — should not return 404
+        # Any unknown path goes to the SPA fallback - should not return 404
         response = client.get("/some/deep/react/route")
         assert response.status_code in (200, 503)
 
@@ -361,15 +361,15 @@ class TestRootEndpoint:
         for evil_path in ("/../api.py", "/..%2F..%2Fapi.py", "/../../etc/passwd"):
             response = client.get(evil_path)
             # Two acceptable outcomes:
-            #   200 + HTML — the SPA fallback kicked in (no asset file
+            #   200 + HTML - the SPA fallback kicked in (no asset file
             #     resolved *inside* frontend_dir, so we served index.html).
-            #   404 / 503 — no index.html available.
+            #   404 / 503 - no index.html available.
             # What is NEVER acceptable: serving a non-HTML response body
             # whose contents are a source file (api.py, /etc/passwd).
             assert response.status_code in (200, 404, 503), (
                 f"Unexpected status for {evil_path!r}: {response.status_code}"
             )
-            # If we served HTML (SPA fallback), the body is the index — not
+            # If we served HTML (SPA fallback), the body is the index - not
             # a leaked source file. If we served JSON 404/503, body must
             # not contain the literal path we tried to read.
             body = response.text
@@ -378,7 +378,7 @@ class TestRootEndpoint:
             )
 
 
-# ── CORS allowlist (v0.2.1 fix) ──────────────────────────────────────────────
+# CORS allowlist
 
 class TestCorsHeaders:
     def test_authorization_header_is_allowed(self):
@@ -392,11 +392,11 @@ class TestCorsHeaders:
         assert "Authorization" in kwargs.get("allow_headers", []), (
             "CORS allow_headers must include 'Authorization'"
         )
-        # Vite dev port (5173) is intentionally NOT in the allowlist (v0.2.1 fix).
+        # Vite dev port (5173) is intentionally NOT in the allowlist.
         assert "http://localhost:5173" not in kwargs.get("allow_origins", [])
 
 
-# ── /api/upload-csv oversize guard (v0.2.1 fix) ──────────────────────────────
+# /api/upload-csv oversize guard
 
 class TestUploadSizeLimit:
     def test_oversize_upload_returns_413(self, tmp_path):
@@ -444,7 +444,7 @@ class TestUploadSizeLimit:
         assert response.status_code in (200, 400)  # 400 only if column recognition fails
 
 
-# -- LIB-03/LIB-04 regression: token delegation and cross-origin uploads ------
+# token delegation and cross-origin uploads
 
 class TestLibraryApiHardening:
     def test_env_token_fallback_is_disabled_by_default(self):
