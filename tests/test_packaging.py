@@ -18,7 +18,7 @@ def test_requires_python_matches_supported_runtime():
 def test_classifiers_list_supported_python_versions():
     data = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))
     classifiers = set(data["project"]["classifiers"])
-    for version in ("3.11", "3.12", "3.13"):
+    for version in ("3.11", "3.12", "3.13", "3.14"):
         assert f"Programming Language :: Python :: {version}" in classifiers
 
 
@@ -32,5 +32,5 @@ def test_readme_no_longer_claims_python_39():
 def test_ci_matrix_covers_every_supported_python_version():
     workflow = PACKAGE_ROOT / ".github" / "workflows" / "linux.yml"
     text = workflow.read_text(encoding="utf-8")
-    for version in ("3.11", "3.12", "3.13"):
+    for version in ("3.11", "3.12", "3.13", "3.14"):
         assert f'"{version}"' in text
