@@ -6,22 +6,24 @@ All tests are fully offline (no GitHub API calls, no token needed).
 Run with:
     python -m pytest tests/test_process.py -v
 """
+
 import io
 import json
+
 import numpy as np
-import pytest
 import pandas as pd
+import pytest
 
 from gitlytics.process import (
+    _parse_raw,
+    _to_bool,
     build_json_payload,
     build_react_payload,
     process_uploaded_csv,
-    _parse_raw,
-    _to_bool,
 )
 
-
 # Shared test data
+
 
 def _make_df(
     repo="user/repo",
@@ -35,28 +37,35 @@ def _make_df(
     path="/README.md",
 ):
     """Builds a minimal one-row tidy DataFrame - same shape as fetch_traffic_data returns."""
-    return pd.DataFrame([{
-        "date": date,
-        "repository": repo,
-        "is_private": is_private,
-        "views": views,
-        "unique_visitors": 4,
-        "clones": clones,
-        "unique_cloners": 2,
-        "stars": stars,
-        "forks": forks,
-        "top_referrer": referrer,
-        "top_referrer_views": 8,
-        "top_referrer_uniques": 3,
-        "top_path": path,
-        "top_path_views": 6,
-        "top_path_uniques": 2,
-        "_raw_referrers": json.dumps([{"referrer": referrer, "count": 8, "uniques": 3}]),
-        "_raw_paths":     json.dumps([{"path": path, "count": 6, "uniques": 2}]),
-    }])
+    return pd.DataFrame(
+        [
+            {
+                "date": date,
+                "repository": repo,
+                "is_private": is_private,
+                "views": views,
+                "unique_visitors": 4,
+                "clones": clones,
+                "unique_cloners": 2,
+                "stars": stars,
+                "forks": forks,
+                "top_referrer": referrer,
+                "top_referrer_views": 8,
+                "top_referrer_uniques": 3,
+                "top_path": path,
+                "top_path_views": 6,
+                "top_path_uniques": 2,
+                "_raw_referrers": json.dumps(
+                    [{"referrer": referrer, "count": 8, "uniques": 3}]
+                ),
+                "_raw_paths": json.dumps([{"path": path, "count": 6, "uniques": 2}]),
+            }
+        ]
+    )
 
 
 # _parse_raw
+
 
 class TestParseRaw:
     def test_valid_json_string_returns_list(self):
@@ -92,6 +101,7 @@ class TestParseRaw:
 
 
 # build_json_payload
+
 
 class TestBuildJsonPayload:
     def test_empty_df_returns_empty_structure(self):
@@ -130,34 +140,46 @@ class TestBuildJsonPayload:
     def test_stars_not_inflated_across_rows(self):
         # Stars are a snapshot - summing them across 14 rows would give wrong numbers
         # build_json_payload should use .iloc[-1], not .sum()
-        df = pd.concat([_make_df(stars=50)] * 14, ignore_index=True)  # 14 identical rows
+        df = pd.concat(
+            [_make_df(stars=50)] * 14, ignore_index=True
+        )  # 14 identical rows
         result = build_json_payload(df, return_format="timeseries")
         assert result["repositories"]["user/repo"]["totals"]["stars"] == 50  # not 700
 
     def test_export_public_only_strips_private_repos(self):
         # Private repos must NOT appear in the output when export_public_only=True
-        df = pd.concat([
-            _make_df(repo="user/public", is_private=False),
-            _make_df(repo="user/private", is_private=True),
-        ])
-        result = build_json_payload(df, return_format="timeseries", export_public_only=True)
+        df = pd.concat(
+            [
+                _make_df(repo="user/public", is_private=False),
+                _make_df(repo="user/private", is_private=True),
+            ]
+        )
+        result = build_json_payload(
+            df, return_format="timeseries", export_public_only=True
+        )
         assert "user/public" in result["repositories"]
         assert "user/private" not in result["repositories"]
 
     def test_export_public_only_false_includes_private(self):
         # When the flag is off, private repos should be included in the output
-        df = pd.concat([
-            _make_df(repo="user/public", is_private=False),
-            _make_df(repo="user/private", is_private=True),
-        ])
-        result = build_json_payload(df, return_format="timeseries", export_public_only=False)
+        df = pd.concat(
+            [
+                _make_df(repo="user/public", is_private=False),
+                _make_df(repo="user/private", is_private=True),
+            ]
+        )
+        result = build_json_payload(
+            df, return_format="timeseries", export_public_only=False
+        )
         assert "user/public" in result["repositories"]
         assert "user/private" in result["repositories"]
 
     def test_all_private_repos_returns_empty_when_public_only(self):
         # If every repo is private and public-only is on, result should be empty
         df = _make_df(is_private=True)
-        result = build_json_payload(df, return_format="timeseries", export_public_only=True)
+        result = build_json_payload(
+            df, return_format="timeseries", export_public_only=True
+        )
         assert result == {"account_totals": {}, "repositories": {}}
 
     def test_timeseries_dates_in_chronological_order(self):
@@ -173,6 +195,7 @@ class TestBuildJsonPayload:
 
 # build_react_payload
 
+
 class TestBuildReactPayload:
     def test_empty_df_returns_empty_list(self):
         # An empty DataFrame must return [] not crash or return None
@@ -187,10 +210,20 @@ class TestBuildReactPayload:
     def test_each_repo_has_required_fields(self):
         # Every repo object needs these fields for the React dashboard to render
         REQUIRED = {
-            "repository", "is_private", "stars", "forks",
-            "views", "unique_visitors", "clones", "unique_cloners",
-            "top_referrer", "top_path",
-            "_daily_views", "_daily_clones", "_referrers", "_paths"
+            "repository",
+            "is_private",
+            "stars",
+            "forks",
+            "views",
+            "unique_visitors",
+            "clones",
+            "unique_cloners",
+            "top_referrer",
+            "top_path",
+            "_daily_views",
+            "_daily_clones",
+            "_referrers",
+            "_paths",
         }
         result = build_react_payload(_make_df())
         missing = REQUIRED - set(result[0].keys())
@@ -214,10 +247,13 @@ class TestBuildReactPayload:
 
     def test_views_are_summed_across_rows(self):
         # When a repo has multiple rows (multiple days), views should be summed
-        df = pd.concat([
-            _make_df(date="2025-06-14", views=10),
-            _make_df(date="2025-06-15", views=15),
-        ], ignore_index=True)
+        df = pd.concat(
+            [
+                _make_df(date="2025-06-14", views=10),
+                _make_df(date="2025-06-15", views=15),
+            ],
+            ignore_index=True,
+        )
         result = build_react_payload(df)
         assert result[0]["views"] == 25
 
@@ -229,10 +265,13 @@ class TestBuildReactPayload:
 
     def test_multiple_repos_returns_multiple_items(self):
         # Multiple distinct repos should produce one list item each
-        df = pd.concat([
-            _make_df(repo="user/repo1"),
-            _make_df(repo="user/repo2"),
-        ], ignore_index=True)
+        df = pd.concat(
+            [
+                _make_df(repo="user/repo1"),
+                _make_df(repo="user/repo2"),
+            ],
+            ignore_index=True,
+        )
         result = build_react_payload(df)
         assert len(result) == 2
         names = {r["repository"] for r in result}
@@ -251,6 +290,7 @@ class TestBuildReactPayload:
 
 # process_uploaded_csv
 
+
 class TestProcessUploadedCsv:
     def _make_csv_bytes(self, columns: dict) -> io.BytesIO:
         """Helper: creates a CSV BytesIO with the given column values."""
@@ -261,37 +301,43 @@ class TestProcessUploadedCsv:
 
     def test_native_format_passes_through(self):
         # Our own CSV format (with 'repository' column) should work without any renaming
-        csv_file = self._make_csv_bytes({
-            "date": "2025-06-14",
-            "repository": "user/repo",
-            "views": 10,
-        })
+        csv_file = self._make_csv_bytes(
+            {
+                "date": "2025-06-14",
+                "repository": "user/repo",
+                "views": 10,
+            }
+        )
         result = process_uploaded_csv(csv_file)
         assert "repository" in result.columns
 
     def test_repo_name_column_renamed(self):
         # Old 'repo_name' column (from pre-rebranding) should be renamed to 'repository'
-        csv_file = self._make_csv_bytes({
-            "date": "2025-06-14",
-            "repo_name": "user/repo",
-            "views": 10,
-        })
+        csv_file = self._make_csv_bytes(
+            {
+                "date": "2025-06-14",
+                "repo_name": "user/repo",
+                "views": 10,
+            }
+        )
         result = process_uploaded_csv(csv_file)
         assert "repository" in result.columns
         assert "repo_name" not in result.columns
 
     def test_title_case_columns_renamed(self):
         # Title-case columns from old export format should be normalised to lowercase
-        csv_file = self._make_csv_bytes({
-            "Repository": "user/repo",
-            "date": "2025-06-14",
-            "Total Views": 10,
-            "Unique Visitors": 4,
-            "Total Clones": 3,
-            "Unique Cloners": 1,
-            "Stars": 20,
-            "Forks": 5,
-        })
+        csv_file = self._make_csv_bytes(
+            {
+                "Repository": "user/repo",
+                "date": "2025-06-14",
+                "Total Views": 10,
+                "Unique Visitors": 4,
+                "Total Clones": 3,
+                "Unique Cloners": 1,
+                "Stars": 20,
+                "Forks": 5,
+            }
+        )
         result = process_uploaded_csv(csv_file)
         assert "repository" in result.columns
         # Multi-word legacy columns must be mapped to the canonical names
@@ -313,10 +359,12 @@ class TestProcessUploadedCsv:
 
     def test_missing_repository_column_raises_value_error(self):
         # A CSV with no recognisable repository column must raise a clear error
-        csv_file = self._make_csv_bytes({
-            "date": "2025-06-14",
-            "some_random_col": "value",
-        })
+        csv_file = self._make_csv_bytes(
+            {
+                "date": "2025-06-14",
+                "some_random_col": "value",
+            }
+        )
         with pytest.raises(ValueError, match="repository"):
             process_uploaded_csv(csv_file)
 
@@ -327,11 +375,13 @@ class TestProcessUploadedCsv:
         # bools. process_uploaded_csv must coerce these to a real bool
         # column so downstream consumers (e.g. build_react_payload)
         # don't silently mislabel public repos as private.
-        csv_file = self._make_csv_bytes({
-            "date": "2025-06-14",
-            "repository": "user/repo",
-            "is_private": "False",
-        })
+        csv_file = self._make_csv_bytes(
+            {
+                "date": "2025-06-14",
+                "repository": "user/repo",
+                "is_private": "False",
+            }
+        )
         result = process_uploaded_csv(csv_file)
         assert result["is_private"].dtype == bool
         assert bool(result["is_private"].iloc[0]) is False
@@ -339,61 +389,74 @@ class TestProcessUploadedCsv:
     def test_is_private_numeric_coerced(self):
         # Same regression - many external CSV exporters write 1/0
         # rather than True/False; both must round-trip correctly.
-        csv_file = self._make_csv_bytes({
-            "date": "2025-06-14",
-            "repository": "user/private",
-            "is_private": "1",
-        })
+        csv_file = self._make_csv_bytes(
+            {
+                "date": "2025-06-14",
+                "repository": "user/private",
+                "is_private": "1",
+            }
+        )
         result = process_uploaded_csv(csv_file)
         assert bool(result["is_private"].iloc[0]) is True
 
-
     def test_returns_dataframe(self):
         # The function must always return a pandas DataFrame
-        csv_file = self._make_csv_bytes({
-            "repository": "user/repo",
-            "date": "2025-06-14",
-            "views": 5,
-        })
+        csv_file = self._make_csv_bytes(
+            {
+                "repository": "user/repo",
+                "date": "2025-06-14",
+                "views": 5,
+            }
+        )
         result = process_uploaded_csv(csv_file)
         assert isinstance(result, pd.DataFrame)
 
     def test_data_values_preserved(self):
         # After normalising column names, the actual data values must be unchanged
-        csv_file = self._make_csv_bytes({
-            "repository": "user/repo",
-            "date": "2025-06-14",
-            "views": 42,
-        })
+        csv_file = self._make_csv_bytes(
+            {
+                "repository": "user/repo",
+                "date": "2025-06-14",
+                "views": 42,
+            }
+        )
         result = process_uploaded_csv(csv_file)
         assert result["views"].iloc[0] == 42
 
     def test_capitalized_date_column_accepted(self):
         # A CSV with 'Date' (capital D) should be normalised and accepted
-        csv_file = self._make_csv_bytes({
-            "repository": "user/repo",
-            "Date": "2025-06-14",
-            "views": 10,
-        })
+        csv_file = self._make_csv_bytes(
+            {
+                "repository": "user/repo",
+                "Date": "2025-06-14",
+                "views": 10,
+            }
+        )
         result = process_uploaded_csv(csv_file)
         assert "date" in result.columns
         assert "Date" not in result.columns
 
     def test_none_values_in_metrics_do_not_crash_payload(self):
         # A DataFrame with None metric values must not crash build_react_payload
-        from gitlytics.process import build_react_payload
         import pandas as pd
-        df = pd.DataFrame([{
-            "date": "2025-06-14",
-            "repository": "user/repo",
-            "is_private": False,
-            "views": None,
-            "unique_visitors": None,
-            "clones": None,
-            "unique_cloners": None,
-            "stars": None,
-            "forks": None,
-        }])
+
+        from gitlytics.process import build_react_payload
+
+        df = pd.DataFrame(
+            [
+                {
+                    "date": "2025-06-14",
+                    "repository": "user/repo",
+                    "is_private": False,
+                    "views": None,
+                    "unique_visitors": None,
+                    "clones": None,
+                    "unique_cloners": None,
+                    "stars": None,
+                    "forks": None,
+                }
+            ]
+        )
         result = build_react_payload(df)
         assert isinstance(result, list)
         assert result[0]["views"] == 0

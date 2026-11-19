@@ -9,10 +9,11 @@ Usage:
 GITHUB_TOKEN / GITLYTICS_TOKEN is loaded automatically from .env
 Output files are saved to: data/data_automation/
 """
-import os
-import sys
+
 import csv
 import json
+import os
+import sys
 from pathlib import Path
 
 if __name__ == "__main__":
@@ -24,10 +25,14 @@ if __name__ == "__main__":
 
     # ── Load .env ──────────────────────────────────────────────────────────────
     try:
-        from dotenv import load_dotenv, find_dotenv
+        from dotenv import find_dotenv, load_dotenv
+
         _env = find_dotenv(usecwd=False, raise_error_if_not_found=False)
         if not _env:
-            for _c in [Path(__file__).parent / ".env", Path(__file__).parent.parent / ".env"]:
+            for _c in [
+                Path(__file__).parent / ".env",
+                Path(__file__).parent.parent / ".env",
+            ]:
                 if _c.exists():
                     _env = str(_c)
                     break
@@ -37,20 +42,34 @@ if __name__ == "__main__":
         pass
 
     # ── Colour helpers ─────────────────────────────────────────────────────────
-    GREEN  = "\033[92m"; RED = "\033[91m"; YELLOW = "\033[93m"
-    CYAN   = "\033[96m"; BOLD = "\033[1m"; RESET  = "\033[0m"
+    GREEN = "\033[92m"
+    RED = "\033[91m"
+    YELLOW = "\033[93m"
+    CYAN = "\033[96m"
+    BOLD = "\033[1m"
+    RESET = "\033[0m"
 
-    def ok(msg):   print(f"  {GREEN}✓{RESET}  {msg}")
-    def fail(msg): print(f"  {RED}✗{RESET}  {msg}")
-    def info(msg): print(f"  {CYAN}ℹ{RESET}  {msg}")
-    def warn(msg): print(f"  {YELLOW}⚠{RESET}  {msg}")
+    def ok(msg):
+        print(f"  {GREEN}✓{RESET}  {msg}")
+
+    def fail(msg):
+        print(f"  {RED}✗{RESET}  {msg}")
+
+    def info(msg):
+        print(f"  {CYAN}ℹ{RESET}  {msg}")
+
+    def warn(msg):
+        print(f"  {YELLOW}⚠{RESET}  {msg}")
+
     def section(title):
-        print(f"\n{BOLD}{'─'*55}{RESET}")
+        print(f"\n{BOLD}{'─' * 55}{RESET}")
         print(f"{BOLD}  {title}{RESET}")
-        print(f"{BOLD}{'─'*55}{RESET}")
+        print(f"{BOLD}{'─' * 55}{RESET}")
 
     # ── Paths and token ────────────────────────────────────────────────────────
-    DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "data_automation"
+    DATA_DIR = (
+        Path(__file__).resolve().parent.parent.parent / "data" / "data_automation"
+    )
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
     section("0 / 7  Setup")
@@ -59,6 +78,7 @@ if __name__ == "__main__":
         info(f"Token loaded from environment ({token[:8]}…)")
     else:
         import getpass
+
         token = getpass.getpass("  Enter your GitHub Personal Access Token: ").strip()
         if not token:
             fail("No token provided. Exiting.")
@@ -67,8 +87,15 @@ if __name__ == "__main__":
 
     # Import the automation functions we're testing
     try:
-        from gitlytics.automation import run_sync_cycle, run_sync, get_csv_path, export_json_database
         import pandas as pd
+
+        from gitlytics.automation import (
+            export_json_database,
+            get_csv_path,
+            run_sync,
+            run_sync_cycle,
+        )
+
         ok("Automation module imported successfully")
     except ImportError as exc:
         fail(f"Could not import gitlytics.automation: {exc}")
@@ -96,9 +123,19 @@ if __name__ == "__main__":
 
     print("\n  [1b] CSV has all required columns")
     REQUIRED_COLS = {
-        "date", "repository", "is_private", "views", "unique_visitors",
-        "clones", "unique_cloners", "stars", "forks",
-        "top_referrer", "top_path", "_raw_referrers", "_raw_paths"
+        "date",
+        "repository",
+        "is_private",
+        "views",
+        "unique_visitors",
+        "clones",
+        "unique_cloners",
+        "stars",
+        "forks",
+        "top_referrer",
+        "top_path",
+        "_raw_referrers",
+        "_raw_paths",
     }
     if csv_path and csv_path.exists():
         try:
@@ -123,16 +160,24 @@ if __name__ == "__main__":
             df = pd.read_csv(csv_path)
             # Date column must be in YYYY-MM-DD format
             date_ok = df["date"].str.match(r"\d{4}-\d{2}-\d{2}").all()
-            ok(f"All dates in YYYY-MM-DD format") if date_ok else fail("Some dates are malformed")
+            ok(f"All dates in YYYY-MM-DD format") if date_ok else fail(
+                "Some dates are malformed"
+            )
             # Views and clones must be non-negative integers
             views_ok = (df["views"] >= 0).all()
-            ok(f"All view counts are non-negative") if views_ok else fail("Negative view counts found")
+            ok(f"All view counts are non-negative") if views_ok else fail(
+                "Negative view counts found"
+            )
             # Stars should be non-negative
             stars_ok = (df["stars"] >= 0).all()
-            ok(f"All star counts are non-negative") if stars_ok else fail("Negative star counts found")
+            ok(f"All star counts are non-negative") if stars_ok else fail(
+                "Negative star counts found"
+            )
             # Repository column must not be empty
             repo_ok = df["repository"].notna().all() and (df["repository"] != "").all()
-            ok("No empty repository names") if repo_ok else fail("Some repository names are empty")
+            ok("No empty repository names") if repo_ok else fail(
+                "Some repository names are empty"
+            )
             info(f"Repositories found: {sorted(df['repository'].unique().tolist())}")
             info(f"Date range: {df['date'].min()} → {df['date'].max()}")
         except Exception as exc:
@@ -158,9 +203,13 @@ if __name__ == "__main__":
                 rows_after = sum(1 for _ in csv.reader(f)) - 1
 
             if rows_after == rows_before:
-                ok(f"Dedup works: {rows_before} rows before → {rows_after} rows after (no change)")
+                ok(
+                    f"Dedup works: {rows_before} rows before → {rows_after} rows after (no change)"
+                )
             elif rows_after > rows_before:
-                warn(f"Row count grew {rows_before} → {rows_after} (GitHub returned new data - this is fine)")
+                warn(
+                    f"Row count grew {rows_before} → {rows_after} (GitHub returned new data - this is fine)"
+                )
             else:
                 fail(f"Rows decreased unexpectedly: {rows_before} → {rows_after}")
         except Exception as exc:
@@ -196,7 +245,7 @@ if __name__ == "__main__":
             data_dir=str(DATA_DIR),
             output_mode="monthly",
             export_json=str(json_export_path),
-            export_public_only=True
+            export_public_only=True,
         )
         if json_export_path.exists():
             size = json_export_path.stat().st_size
@@ -209,15 +258,22 @@ if __name__ == "__main__":
         else:
             warn("JSON export was not created (may be empty data)")
     except Exception as exc:
-        import traceback; traceback.print_exc(); fail(f"export_json raised: {exc}")
+        import traceback
+
+        traceback.print_exc()
+        fail(f"export_json raised: {exc}")
 
     print("\n  [4b] export_json_database() directly")
     json_direct_path = DATA_DIR / "automation_direct_export.json"
     try:
-        export_json_database(str(DATA_DIR), str(json_direct_path), export_public_only=True)
+        export_json_database(
+            str(DATA_DIR), str(json_direct_path), export_public_only=True
+        )
         if json_direct_path.exists():
             size = json_direct_path.stat().st_size
-            ok(f"Direct export written: automation_direct_export.json  ({size:,} bytes)")
+            ok(
+                f"Direct export written: automation_direct_export.json  ({size:,} bytes)"
+            )
         else:
             warn("No export written (may be no CSVs in data_dir yet)")
     except Exception as exc:
@@ -237,11 +293,13 @@ if __name__ == "__main__":
             output_mode="monthly",
             schedule_cron=None,
             export_json=str(sync_json_path),
-            export_public_only=True
+            export_public_only=True,
         )
         ok("run_sync() completed without error")
         if sync_json_path.exists():
-            ok(f"run_sync export written: run_sync_export.json ({sync_json_path.stat().st_size:,} bytes)")
+            ok(
+                f"run_sync export written: run_sync_export.json ({sync_json_path.stat().st_size:,} bytes)"
+            )
         else:
             warn("run_sync export not written (may be empty data)")
     except Exception as exc:
@@ -256,6 +314,7 @@ if __name__ == "__main__":
     try:
         path = get_csv_path(str(DATA_DIR), "monthly")
         import re
+
         filename = os.path.basename(path)
         if re.match(r"traffic_\d{4}-\d{2}\.csv", filename):
             ok(f"Monthly path correct: {filename}")
@@ -324,4 +383,3 @@ if __name__ == "__main__":
     print(f"\n  All automation online tests completed.")
     print(f"  Check {RED}✗{RESET} lines above for any failures.")
     print(f"  Output files in: data/data_automation/\n")
-

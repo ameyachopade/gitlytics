@@ -11,8 +11,8 @@ from .exceptions import (
     GitHubRateLimitError,
     GitlyticsError,
     NoTrafficDataError,
-    StarHistoryFetchError,
     StargazersRestrictedError,
+    StarHistoryFetchError,
     TokenExpiredError,
 )
 from .io.atomic import _write_csv_safely, _write_json_safely

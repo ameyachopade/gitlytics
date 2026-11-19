@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """Architectural guardrail tests for the modular gitlytics package layout."""
+
 from __future__ import annotations
 
 import os
@@ -22,7 +23,9 @@ def test_public_all_exports_exist_and_match_version():
     ]["version"]
     assert gitlytics.__version__ == declared
     for symbol in gitlytics.__all__:
-        assert hasattr(gitlytics, symbol), f"gitlytics.__all__ symbol {symbol!r} missing"
+        assert hasattr(gitlytics, symbol), (
+            f"gitlytics.__all__ symbol {symbol!r} missing"
+        )
 
 
 def test_backward_compat_imports_for_backend_and_cli():
@@ -57,7 +60,10 @@ def test_backward_compat_imports_for_backend_and_cli():
     assert gitlytics.process._to_bool is gitlytics.io._to_bool
     assert gitlytics.username.get_public_user is gitlytics.core.get_public_user
     assert gitlytics.username.get_public_repos is gitlytics.core.get_public_repos
-    assert gitlytics.username.validate_github_username is gitlytics.core.validate_github_username
+    assert (
+        gitlytics.username.validate_github_username
+        is gitlytics.core.validate_github_username
+    )
 
     # Entry points expected by pyproject.toml scripts and uvicorn.run("gitlytics.api:app").
     assert callable(gitlytics.cli.main)
@@ -139,7 +145,9 @@ def test_static_bundle_excludes_hosted_and_cloud_only_files():
         "322e4f16125148b7a5e8f8bb966a1d51.txt",
     )
     for name in forbidden_top_level:
-        assert not (static_dir / name).exists(), f"hosted-only file leaked into static/: {name}"
+        assert not (static_dir / name).exists(), (
+            f"hosted-only file leaked into static/: {name}"
+        )
 
     assets_dir = static_dir / "assets"
     assert assets_dir.is_dir()

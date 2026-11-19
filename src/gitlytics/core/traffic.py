@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """GitHub traffic API fetching, 15-day zero-padding, and tidy DataFrame building."""
+
 from __future__ import annotations
 
 import contextvars
@@ -12,6 +13,7 @@ from datetime import datetime, timedelta, timezone
 import pandas as pd
 
 from gitlytics.exceptions import GitHubRateLimitError, TokenExpiredError
+
 from . import client
 from .repos import _validate_full_name, get_all_repos, get_single_repo
 
@@ -33,21 +35,33 @@ def get_repo_traffic(token: str, full_name: str, metrics: list = None) -> dict:
 
     with client._operation_deadline():
         if wants_views:
-            views, v_status = client._safe_get(f"{client.BASE}/repos/{full_name}/traffic/views", headers)
+            views, v_status = client._safe_get(
+                f"{client.BASE}/repos/{full_name}/traffic/views", headers
+            )
             traffic_statuses.append(v_status)
             views_ok = v_status == 200 and isinstance(views, dict) and "views" in views
         if wants_clones:
-            clones, c_status = client._safe_get(f"{client.BASE}/repos/{full_name}/traffic/clones", headers)
+            clones, c_status = client._safe_get(
+                f"{client.BASE}/repos/{full_name}/traffic/clones", headers
+            )
             traffic_statuses.append(c_status)
-            clones_ok = c_status == 200 and isinstance(clones, dict) and "clones" in clones
+            clones_ok = (
+                c_status == 200 and isinstance(clones, dict) and "clones" in clones
+            )
         if metrics is None or "referrers" in metrics:
-            refs, _ = client._safe_get(f"{client.BASE}/repos/{full_name}/traffic/popular/referrers", headers)
+            refs, _ = client._safe_get(
+                f"{client.BASE}/repos/{full_name}/traffic/popular/referrers", headers
+            )
         if metrics is None or "paths" in metrics:
-            paths, _ = client._safe_get(f"{client.BASE}/repos/{full_name}/traffic/popular/paths", headers)
+            paths, _ = client._safe_get(
+                f"{client.BASE}/repos/{full_name}/traffic/popular/paths", headers
+            )
 
     if metrics is None or "releases" in metrics:
         try:
-            releases_count = client._count_via_link_header(f"{client.BASE}/repos/{full_name}/releases", headers)
+            releases_count = client._count_via_link_header(
+                f"{client.BASE}/repos/{full_name}/releases", headers
+            )
         except Exception as exc:
             logger.warning("Could not fetch releases count for %s: %s", full_name, exc)
 
@@ -76,11 +90,17 @@ def pad_traffic_data(traffic: dict) -> list[dict]:
     views_obj = traffic.get("views") if isinstance(traffic, dict) else {}
     clones_obj = traffic.get("clones") if isinstance(traffic, dict) else {}
     views_list = [
-        item for item in ((views_obj.get("views") if isinstance(views_obj, dict) else None) or [])
+        item
+        for item in (
+            (views_obj.get("views") if isinstance(views_obj, dict) else None) or []
+        )
         if isinstance(item, dict)
     ]
     clones_list = [
-        item for item in ((clones_obj.get("clones") if isinstance(clones_obj, dict) else None) or [])
+        item
+        for item in (
+            (clones_obj.get("clones") if isinstance(clones_obj, dict) else None) or []
+        )
         if isinstance(item, dict)
     ]
 
@@ -94,29 +114,49 @@ def pad_traffic_data(traffic: dict) -> list[dict]:
     now_utc = datetime.now(timezone.utc)
     if latest_date_str:
         try:
-            parsed_date = datetime.strptime(latest_date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            end_date = now_utc if 0 <= (now_utc.date() - parsed_date.date()).days <= 14 else parsed_date
+            parsed_date = datetime.strptime(latest_date_str, "%Y-%m-%d").replace(
+                tzinfo=timezone.utc
+            )
+            end_date = (
+                now_utc
+                if 0 <= (now_utc.date() - parsed_date.date()).days <= 14
+                else parsed_date
+            )
         except ValueError:
-            logger.warning(f"Could not parse traffic date {latest_date_str!r}; falling back to today.")
+            logger.warning(
+                f"Could not parse traffic date {latest_date_str!r}; falling back to today."
+            )
             end_date = now_utc
     else:
         end_date = now_utc
 
-    dates = [(end_date - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(14, -1, -1)]
-    views_map = {v.get("timestamp", "")[:10]: v for v in views_list if isinstance(v, dict) and v.get("timestamp")}
-    clones_map = {c.get("timestamp", "")[:10]: c for c in clones_list if isinstance(c, dict) and c.get("timestamp")}
+    dates = [
+        (end_date - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(14, -1, -1)
+    ]
+    views_map = {
+        v.get("timestamp", "")[:10]: v
+        for v in views_list
+        if isinstance(v, dict) and v.get("timestamp")
+    }
+    clones_map = {
+        c.get("timestamp", "")[:10]: c
+        for c in clones_list
+        if isinstance(c, dict) and c.get("timestamp")
+    }
 
     padded = []
     for d in dates:
         v = views_map.get(d, {}) or {}
         c = clones_map.get(d, {}) or {}
-        padded.append({
-            "date": d,
-            "views": int(v.get("count", 0) or 0),
-            "unique_visitors": int(v.get("uniques", 0) or 0),
-            "clones": int(c.get("count", 0) or 0),
-            "unique_cloners": int(c.get("uniques", 0) or 0),
-        })
+        padded.append(
+            {
+                "date": d,
+                "views": int(v.get("count", 0) or 0),
+                "unique_visitors": int(v.get("uniques", 0) or 0),
+                "clones": int(c.get("count", 0) or 0),
+                "unique_cloners": int(c.get("uniques", 0) or 0),
+            }
+        )
     return padded
 
 
@@ -229,6 +269,7 @@ def fetch_traffic_data(
                     traffic_results.append(traffic)
                 all_rows.extend(build_tidy_rows(repo, traffic, metrics))
         else:
+
             def _fetch_one(idx_repo):
                 idx, repo = idx_repo
                 traffic = get_repo_traffic(token, repo["full_name"], metrics)
@@ -251,8 +292,14 @@ def fetch_traffic_data(
                 all_rows.extend(rows)
 
     # Surface auth or rate-limit errors if every single repository failed.
-    if not all_rows and traffic_results and all(t.get("_fetch_ok") is False for t in traffic_results):
-        statuses = [s for t in traffic_results for s in (t.get("_traffic_statuses") or [])]
+    if (
+        not all_rows
+        and traffic_results
+        and all(t.get("_fetch_ok") is False for t in traffic_results)
+    ):
+        statuses = [
+            s for t in traffic_results for s in (t.get("_traffic_statuses") or [])
+        ]
         if 429 in statuses:
             raise GitHubRateLimitError(
                 "GitHub API rate limit exceeded while fetching traffic data (HTTP 429)."

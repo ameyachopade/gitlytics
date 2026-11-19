@@ -9,9 +9,10 @@ Usage:
 GITHUB_TOKEN / GITLYTICS_TOKEN is loaded automatically from .env
 Output files are saved to: data/data_cli/
 """
+
 import os
-import sys
 import subprocess
+import sys
 from pathlib import Path
 
 if __name__ == "__main__":
@@ -23,7 +24,8 @@ if __name__ == "__main__":
 
     # ── Load .env so GITHUB_TOKEN / GITLYTICS_TOKEN are available ─────────────
     try:
-        from dotenv import load_dotenv, find_dotenv
+        from dotenv import find_dotenv, load_dotenv
+
         _env_file = find_dotenv(usecwd=False, raise_error_if_not_found=False)
         if not _env_file:
             for _candidate in [
@@ -39,21 +41,29 @@ if __name__ == "__main__":
         pass
 
     # ── Colour helpers ─────────────────────────────────────────────────────────
-    GREEN  = "\033[92m"
-    RED    = "\033[91m"
+    GREEN = "\033[92m"
+    RED = "\033[91m"
     YELLOW = "\033[93m"
-    CYAN   = "\033[96m"
-    BOLD   = "\033[1m"
-    RESET  = "\033[0m"
+    CYAN = "\033[96m"
+    BOLD = "\033[1m"
+    RESET = "\033[0m"
 
-    def ok(msg):   print(f"  {GREEN}✓{RESET}  {msg}")
-    def fail(msg): print(f"  {RED}✗{RESET}  {msg}")
-    def info(msg): print(f"  {CYAN}ℹ{RESET}  {msg}")
-    def warn(msg): print(f"  {YELLOW}⚠{RESET}  {msg}")
+    def ok(msg):
+        print(f"  {GREEN}✓{RESET}  {msg}")
+
+    def fail(msg):
+        print(f"  {RED}✗{RESET}  {msg}")
+
+    def info(msg):
+        print(f"  {CYAN}ℹ{RESET}  {msg}")
+
+    def warn(msg):
+        print(f"  {YELLOW}⚠{RESET}  {msg}")
+
     def section(title):
-        print(f"\n{BOLD}{'─'*55}{RESET}")
+        print(f"\n{BOLD}{'─' * 55}{RESET}")
         print(f"{BOLD}  {title}{RESET}")
-        print(f"{BOLD}{'─'*55}{RESET}")
+        print(f"{BOLD}{'─' * 55}{RESET}")
 
     # Persistent output goes to data/data_cli/
     DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "data_cli"
@@ -69,6 +79,7 @@ if __name__ == "__main__":
         info(f"Using token from environment variable ({token[:8]}…)")
     else:
         import getpass
+
         token = getpass.getpass("  Enter your GitHub Personal Access Token: ").strip()
         if not token:
             fail("No token provided. Exiting.")
@@ -95,7 +106,7 @@ if __name__ == "__main__":
             encoding="utf-8",
             errors="replace",
             env=env,
-            timeout=120  # 2 minutes max per command
+            timeout=120,  # 2 minutes max per command
         )
 
     # ─────────────────────────────────────────────────────────────────────────────
@@ -228,6 +239,7 @@ if __name__ == "__main__":
         warn("Skipped - no CSV was created in [3a]")
     else:
         import csv as csv_mod
+
         csv_path = csv_files[0]
         try:
             with open(csv_path, "r", encoding="utf-8") as f:
@@ -238,7 +250,9 @@ if __name__ == "__main__":
             if rows_after == rows_before:
                 ok(f"No duplicates: {rows_before} rows before, {rows_after} rows after")
             elif rows_after > rows_before:
-                warn(f"Row count grew {rows_before} → {rows_after} (GitHub may have returned new data)")
+                warn(
+                    f"Row count grew {rows_before} → {rows_after} (GitHub may have returned new data)"
+                )
             else:
                 fail(f"Rows decreased unexpectedly: {rows_before} → {rows_after}")
         except Exception as exc:
@@ -262,7 +276,9 @@ if __name__ == "__main__":
     print("\n  [3d] sync --export-json <data_dir>/cli_export.json")
     json_export = str(DATA_DIR / "cli_export.json")
     try:
-        result = run_cli("sync", "--data-dir", str(DATA_DIR), "--export-json", json_export)
+        result = run_cli(
+            "sync", "--data-dir", str(DATA_DIR), "--export-json", json_export
+        )
         if result.returncode == 0:
             ok("Command exited with code 0")
         else:
@@ -298,8 +314,12 @@ if __name__ == "__main__":
 
     try:
         import urllib.request
-        with urllib.request.urlopen("http://127.0.0.1:19876/api/config", timeout=3) as resp:
+
+        with urllib.request.urlopen(
+            "http://127.0.0.1:19876/api/config", timeout=3
+        ) as resp:
             import json as _json
+
             cfg = _json.loads(resp.read())
         assert "has_token" in cfg
         ok(f"Dashboard is live - /api/config responded: {cfg}")
@@ -333,5 +353,7 @@ if __name__ == "__main__":
 
     # ── Summary ───────────────────────────────────────────────────────────────
     section("Done")
-    print(f"\n  All CLI online tests completed. Check {RED}✗{RESET} lines above for any failures.\n")
+    print(
+        f"\n  All CLI online tests completed. Check {RED}✗{RESET} lines above for any failures.\n"
+    )
     print(f"  Output files saved to: {DATA_DIR}\n")

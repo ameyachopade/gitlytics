@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """Security headers middleware, same-origin checks, upload auth, and token resolution."""
+
 from __future__ import annotations
 
 import os
@@ -165,7 +166,9 @@ def _require_browser_same_origin(request: Request) -> None:
     origin = headers.get("origin") or headers.get("referer")
     if origin:
         if not _is_same_host_origin(origin, headers.get("host") or ""):
-            raise HTTPException(status_code=403, detail="Cross-origin request rejected.")
+            raise HTTPException(
+                status_code=403, detail="Cross-origin request rejected."
+            )
         if request.method == "POST":
             ctype = (headers.get("content-type") or "").split(";")[0].strip().lower()
             if ctype != "application/json":
@@ -178,7 +181,10 @@ def _require_browser_same_origin(request: Request) -> None:
 def _env_token_allowed() -> bool:
     """Return True only when serve_dashboard opted in to loopback env-token fallback."""
     return (os.environ.get("GITLYTICS_ALLOW_ENV_TOKEN") or "").strip().lower() in {
-        "1", "true", "yes", "on",
+        "1",
+        "true",
+        "yes",
+        "on",
     }
 
 

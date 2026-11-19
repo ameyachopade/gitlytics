@@ -13,9 +13,10 @@ Usage:
 
 Output is printed to stdout with colour-coded PASS / FAIL / WARN lines.
 """
+
+import json
 import os
 import sys
-import json
 
 if __name__ == "__main__":
     # Force UTF-8 output so Unicode symbols render on Windows terminals
@@ -25,30 +26,39 @@ if __name__ == "__main__":
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
     # ── Colour helpers ─────────────────────────────────────────────────────────
-    GREEN  = "\033[92m"
-    RED    = "\033[91m"
+    GREEN = "\033[92m"
+    RED = "\033[91m"
     YELLOW = "\033[93m"
-    CYAN   = "\033[96m"
-    BOLD   = "\033[1m"
-    RESET  = "\033[0m"
+    CYAN = "\033[96m"
+    BOLD = "\033[1m"
+    RESET = "\033[0m"
 
-    def ok(msg):   print(f"  {GREEN}✓{RESET}  {msg}")
-    def fail(msg): print(f"  {RED}✗{RESET}  {msg}")
-    def info(msg): print(f"  {CYAN}ℹ{RESET}  {msg}")
-    def warn(msg): print(f"  {YELLOW}⚠{RESET}  {msg}")
+    def ok(msg):
+        print(f"  {GREEN}✓{RESET}  {msg}")
+
+    def fail(msg):
+        print(f"  {RED}✗{RESET}  {msg}")
+
+    def info(msg):
+        print(f"  {CYAN}ℹ{RESET}  {msg}")
+
+    def warn(msg):
+        print(f"  {YELLOW}⚠{RESET}  {msg}")
+
     def section(title):
-        print(f"\n{BOLD}{'─'*55}{RESET}")
+        print(f"\n{BOLD}{'─' * 55}{RESET}")
         print(f"{BOLD}  {title}{RESET}")
-        print(f"{BOLD}{'─'*55}{RESET}")
+        print(f"{BOLD}{'─' * 55}{RESET}")
 
     # ── Target username ────────────────────────────────────────────────────────
     USERNAME = sys.argv[1] if len(sys.argv) > 1 else "torvalds"
-    MISSING  = "nonexistent-user-xyzzy-91827"
+    MISSING = "nonexistent-user-xyzzy-91827"
 
     # ── Import check ───────────────────────────────────────────────────────────
     section("0 / 4  Import check")
     try:
-        from gitlytics.core import get_public_user, get_public_repos
+        from gitlytics.core import get_public_repos, get_public_user
+
         ok("gitlytics.core imported successfully")
     except ImportError as exc:
         fail(f"Could not import gitlytics.core: {exc}")
@@ -56,8 +66,10 @@ if __name__ == "__main__":
         sys.exit(1)
 
     try:
-        from gitlytics.api import app
         from fastapi.testclient import TestClient
+
+        from gitlytics.api import app
+
         client = TestClient(app)
         HAS_CLIENT = True
         ok("FastAPI TestClient available - /api/username endpoint tests enabled")
@@ -76,15 +88,23 @@ if __name__ == "__main__":
         profile = get_public_user(USERNAME)
         ok(f"Profile returned for '{profile['login']}'")
         info(f"Name: {profile['name']}")
-        info(f"Followers: {profile['followers']}, Following: {profile['following']}, Repos: {profile['public_repos']}")
+        info(
+            f"Followers: {profile['followers']}, Following: {profile['following']}, Repos: {profile['public_repos']}"
+        )
         info(f"Profile URL: {profile['html_url']}")
     except Exception as exc:
         fail(f"get_public_user('{USERNAME}') raised: {exc}")
 
     print("\n  [1b] Validate required fields are present")
     REQUIRED_PROFILE_FIELDS = (
-        "login", "name", "avatar_url", "html_url",
-        "followers", "following", "public_repos", "created_at",
+        "login",
+        "name",
+        "avatar_url",
+        "html_url",
+        "followers",
+        "following",
+        "public_repos",
+        "created_at",
     )
     if profile:
         missing = [f for f in REQUIRED_PROFILE_FIELDS if f not in profile]
@@ -116,9 +136,13 @@ if __name__ == "__main__":
         assert isinstance(repos, list), "Expected a list"
         ok(f"Returned {len(repos)} repos")
         if repos:
-            top = sorted(repos, key=lambda r: r.get("stargazers_count", 0), reverse=True)[0]
+            top = sorted(
+                repos, key=lambda r: r.get("stargazers_count", 0), reverse=True
+            )[0]
             info(f"Most starred: {top['full_name']} ★{top['stargazers_count']}")
-            info(f"Languages: {sorted({r.get('language') for r in repos if r.get('language')})}")
+            info(
+                f"Languages: {sorted({r.get('language') for r in repos if r.get('language')})}"
+            )
         else:
             warn("Repo list is empty - user may have no public repos")
     except Exception as exc:
@@ -126,8 +150,14 @@ if __name__ == "__main__":
 
     print("\n  [2b] Validate required repo fields")
     REQUIRED_REPO_FIELDS = (
-        "name", "full_name", "html_url", "stargazers_count",
-        "forks_count", "language", "topics", "fork",
+        "name",
+        "full_name",
+        "html_url",
+        "stargazers_count",
+        "forks_count",
+        "language",
+        "topics",
+        "fork",
     )
     if repos:
         sample = repos[0]
@@ -164,7 +194,7 @@ if __name__ == "__main__":
                 ok(f"HTTP 200 OK")
                 data = resp.json()
                 assert "profile" in data, "Missing 'profile' key in response"
-                assert "repos" in data,   "Missing 'repos' key in response"
+                assert "repos" in data, "Missing 'repos' key in response"
                 ok(f"Response has 'profile' and 'repos' keys")
                 info(f"Profile login: {data['profile'].get('login')}")
                 info(f"Repos count: {len(data['repos'])}")
@@ -211,8 +241,12 @@ if __name__ == "__main__":
 
     print(f"\n  [4a] Stars are non-negative integers")
     if repos:
-        bad = [r for r in repos if not isinstance(r.get("stargazers_count", 0), int)
-               or r.get("stargazers_count", 0) < 0]
+        bad = [
+            r
+            for r in repos
+            if not isinstance(r.get("stargazers_count", 0), int)
+            or r.get("stargazers_count", 0) < 0
+        ]
         if bad:
             fail(f"Found repos with invalid star counts: {[r['name'] for r in bad]}")
         else:

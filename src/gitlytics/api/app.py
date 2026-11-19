@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """FastAPI application factory and ASGI instance for the local dashboard."""
+
 from __future__ import annotations
 
 from fastapi import FastAPI
@@ -8,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .routes import router
-from .security import STATIC_DIR, _ALLOWED_ORIGINS, _SecurityHeadersMiddleware
+from .security import _ALLOWED_ORIGINS, STATIC_DIR, _SecurityHeadersMiddleware
 
 
 def create_app() -> FastAPI:

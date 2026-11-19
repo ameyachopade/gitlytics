@@ -40,14 +40,14 @@ from .routes import (
     upload_csv,
 )
 from .security import (
-    STATIC_DIR,
     _ALLOWED_ORIGINS,
-    _SecurityHeadersMiddleware,
+    STATIC_DIR,
     _env_token_allowed,
     _get_token,
     _parse_static_security_headers,
     _require_browser_same_origin,
     _require_upload_access,
+    _SecurityHeadersMiddleware,
     _static_security_headers,
 )
 

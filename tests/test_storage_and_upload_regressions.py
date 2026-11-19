@@ -1,4 +1,5 @@
 """Offline tests for exception identity, wheel freshness, rate limits, caching, and CLI safety."""
+
 from __future__ import annotations
 
 import io
@@ -11,8 +12,7 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-from gitlytics import core
-from gitlytics import process
+from gitlytics import core, process
 from gitlytics.core import (
     GitHubRateLimitError,
     TokenExpiredError,
@@ -32,7 +32,6 @@ def _resp(status: int, *, body=None, headers=None, text: str = ""):
     r.headers = headers or {}
     r.text = text
     return r
-
 
 
 class TestLib01SingleTokenExpiredError:
@@ -56,19 +55,23 @@ class TestLib01SingleTokenExpiredError:
     def test_cron_mode_exits_instead_of_logging_unexpected(self, tmp_path):
         from gitlytics.automation import run_sync
 
-        with patch("gitlytics.automation.scheduler.validate_token", return_value=(True, "user")), \
-             patch(
-                 "gitlytics.automation.scheduler.run_sync_cycle",
-                 side_effect=core.TokenExpiredError("dead token"),
-             ), \
-             patch("gitlytics.automation.scheduler._interruptible_sleep"):
+        with (
+            patch(
+                "gitlytics.automation.scheduler.validate_token",
+                return_value=(True, "user"),
+            ),
+            patch(
+                "gitlytics.automation.scheduler.run_sync_cycle",
+                side_effect=core.TokenExpiredError("dead token"),
+            ),
+            patch("gitlytics.automation.scheduler._interruptible_sleep"),
+        ):
             with pytest.raises(core.TokenExpiredError):
                 run_sync(
                     "token",
                     data_dir=str(tmp_path),
                     schedule_cron="* * * * *",
                 )
-
 
 
 class TestLib02ArtifactsMatchSource:
@@ -79,13 +82,15 @@ class TestLib02ArtifactsMatchSource:
             pytest.skip("dist/ not rebuilt yet (release step builds it last)")
 
         wheel = wheels[-1]
-        declared = tomllib.loads(
-            (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-        )["project"]["version"]
+        declared = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))[
+            "project"
+        ]["version"]
         assert declared in wheel.name, f"unexpected artifact {wheel.name}"
         with zipfile.ZipFile(wheel) as zf:
             traffic_src = zf.read("gitlytics/core/traffic.py").decode("utf-8")
-            assert "range(14, -1, -1)" in traffic_src, "wheel contains stale core/traffic.py"
+            assert "range(14, -1, -1)" in traffic_src, (
+                "wheel contains stale core/traffic.py"
+            )
             wheel_assets = {
                 n.split("gitlytics/static/", 1)[1]
                 for n in zf.namelist()
@@ -99,7 +104,6 @@ class TestLib02ArtifactsMatchSource:
         assert wheel_assets == source_assets, (
             "wheel static assets differ from src - stale build/"
         )
-
 
 
 class TestLib03PinnedReposAuthFailure:
@@ -123,14 +127,16 @@ class TestLib03PinnedReposAuthFailure:
                 cli.main(
                     [
                         "fetch",
-                        "--token", "t",
-                        "--repo-name", "owner/repo",
-                        "--save-file", str(out),
+                        "--token",
+                        "t",
+                        "--repo-name",
+                        "owner/repo",
+                        "--save-file",
+                        str(out),
                     ]
                 )
         assert exc.value.code == 1
         assert out.read_bytes() == b"OLD-BYTES"
-
 
 
 class TestLib04RateLimitClassification:
@@ -156,20 +162,26 @@ class TestLib04RateLimitClassification:
             headers={"x-ratelimit-remaining": "0"},
             text="API rate limit exceeded",
         )
-        with patch("gitlytics.core.client._http_get", side_effect=[limited, limited, limited]), \
-             patch("gitlytics.core.client.time.sleep"):
+        with (
+            patch(
+                "gitlytics.core.client._http_get",
+                side_effect=[limited, limited, limited],
+            ),
+            patch("gitlytics.core.client.time.sleep"),
+        ):
             data, status = _safe_get("https://api.github.com/user/repos", {})
         assert data == {}
         assert status == 429
 
     def test_safe_get_keeps_plain_403(self):
         denied = _resp(403, headers={}, text="Resource not accessible")
-        with patch("gitlytics.core.client._http_get", return_value=denied), \
-             patch("gitlytics.core.client.time.sleep"):
+        with (
+            patch("gitlytics.core.client._http_get", return_value=denied),
+            patch("gitlytics.core.client.time.sleep"),
+        ):
             data, status = _safe_get("https://api.github.com/user/repos", {})
         assert data == {}
         assert status == 403
-
 
 
 class TestLib05NaNInTimeseries:
@@ -200,7 +212,6 @@ class TestLib05NaNInTimeseries:
         assert payload["repositories"]["owner/repo"]["unique_visitors"] == 0
 
 
-
 class TestLib06UploadIsolation:
     def _write(self, path: Path, repo: str):
         pd.DataFrame(
@@ -221,14 +232,24 @@ class TestLib06UploadIsolation:
 
     def test_traffic_ignores_uploaded_csv(self, tmp_path):
         from fastapi.testclient import TestClient
+
         from gitlytics.api import app
 
         self._write(tmp_path / "traffic_2026-01.csv", "owner/sync")
         self._write(tmp_path / "traffic_uploaded_deadbeef.csv", "owner/uploaded")
 
-        with patch.dict("os.environ", {"GITLYTICS_DATA_DIR": str(tmp_path)}, clear=False), \
-             patch("gitlytics.api.cache._validate_token_cached", return_value=(True, "owner")), \
-             patch("gitlytics.api.cache.fetch_traffic_data", return_value=pd.DataFrame()):
+        with (
+            patch.dict(
+                "os.environ", {"GITLYTICS_DATA_DIR": str(tmp_path)}, clear=False
+            ),
+            patch(
+                "gitlytics.api.cache._validate_token_cached",
+                return_value=(True, "owner"),
+            ),
+            patch(
+                "gitlytics.api.cache.fetch_traffic_data", return_value=pd.DataFrame()
+            ),
+        ):
             resp = TestClient(app).post("/api/traffic", json={"token": "t"})
         assert resp.status_code == 200
         repos = {r["repository"] for r in resp.json()}
@@ -237,6 +258,7 @@ class TestLib06UploadIsolation:
 
     def test_upload_leaves_no_file_behind(self, tmp_path):
         from fastapi.testclient import TestClient
+
         from gitlytics import api
         from gitlytics.api import routes as api_routes
 
@@ -260,7 +282,6 @@ class TestLib06UploadIsolation:
         assert not any(Path(p).exists() for p in created)
 
 
-
 class TestLib07PooledSessionIsUsed:
     def test_http_get_goes_through_session(self):
         session = MagicMock()
@@ -279,13 +300,15 @@ class TestLib07PooledSessionIsUsed:
     def test_no_direct_requests_get_calls_remain(self):
         for py_file in (ROOT / "src" / "gitlytics").rglob("*.py"):
             source = py_file.read_text(encoding="utf-8")
-            assert "requests.get(" not in source, f"direct requests.get() found in {py_file}"
-
+            assert "requests.get(" not in source, (
+                f"direct requests.get() found in {py_file}"
+            )
 
 
 class TestLib08TrafficTTLCache:
     def test_two_requests_hit_github_once_then_expire(self):
         from fastapi.testclient import TestClient
+
         from gitlytics import api
 
         frame = pd.DataFrame(
@@ -304,8 +327,15 @@ class TestLib08TrafficTTLCache:
             ]
         )
         client = TestClient(api.app)
-        with patch("gitlytics.api.cache._validate_token_cached", return_value=(True, "user")), \
-             patch("gitlytics.api.cache.fetch_traffic_data", return_value=frame) as fetch:
+        with (
+            patch(
+                "gitlytics.api.cache._validate_token_cached",
+                return_value=(True, "user"),
+            ),
+            patch(
+                "gitlytics.api.cache.fetch_traffic_data", return_value=frame
+            ) as fetch,
+        ):
             client.post("/api/traffic", json={"token": "cache-test-token"})
             client.post("/api/traffic", json={"token": "cache-test-token"})
             assert fetch.call_count == 1
@@ -322,20 +352,33 @@ class TestLib08TrafficTTLCache:
     def test_cache_key_is_not_the_raw_token(self):
         from gitlytics import api
 
-        with patch("gitlytics.api.cache.fetch_traffic_data", return_value=pd.DataFrame()):
+        with patch(
+            "gitlytics.api.cache.fetch_traffic_data", return_value=pd.DataFrame()
+        ):
             api._cached_live_traffic("super-secret-token")
         assert all("super-secret-token" not in key for key in api._TRAFFIC_CACHE)
-
 
 
 class TestLib09NumericCoercion:
     def test_object_dtype_strings_sum_as_numbers(self):
         df = pd.DataFrame(
             [
-                {"date": "2026-01-01", "repository": "o/r", "views": "10",
-                 "unique_visitors": "1", "clones": "0", "unique_cloners": "0"},
-                {"date": "2026-01-02", "repository": "o/r", "views": "5",
-                 "unique_visitors": "1", "clones": "0", "unique_cloners": "0"},
+                {
+                    "date": "2026-01-01",
+                    "repository": "o/r",
+                    "views": "10",
+                    "unique_visitors": "1",
+                    "clones": "0",
+                    "unique_cloners": "0",
+                },
+                {
+                    "date": "2026-01-02",
+                    "repository": "o/r",
+                    "views": "5",
+                    "unique_visitors": "1",
+                    "clones": "0",
+                    "unique_cloners": "0",
+                },
             ]
         )
         payload = build_json_payload(df, return_format="summary")
@@ -347,45 +390,69 @@ class TestLib09NumericCoercion:
     def test_react_payload_totals_are_numeric(self):
         df = pd.DataFrame(
             [
-                {"date": "2026-01-01", "repository": "o/r", "is_private": False,
-                 "views": "10", "unique_visitors": "1", "clones": "0",
-                 "unique_cloners": "0", "stars": "3", "forks": "1"},
-                {"date": "2026-01-02", "repository": "o/r", "is_private": False,
-                 "views": "5", "unique_visitors": "1", "clones": "0",
-                 "unique_cloners": "0", "stars": "3", "forks": "1"},
+                {
+                    "date": "2026-01-01",
+                    "repository": "o/r",
+                    "is_private": False,
+                    "views": "10",
+                    "unique_visitors": "1",
+                    "clones": "0",
+                    "unique_cloners": "0",
+                    "stars": "3",
+                    "forks": "1",
+                },
+                {
+                    "date": "2026-01-02",
+                    "repository": "o/r",
+                    "is_private": False,
+                    "views": "5",
+                    "unique_visitors": "1",
+                    "clones": "0",
+                    "unique_cloners": "0",
+                    "stars": "3",
+                    "forks": "1",
+                },
             ]
         )
         payload = process.build_react_payload(df)
         assert payload[0]["views"] == 15
 
     def test_uploaded_csv_is_coerced_at_ingest(self):
-        csv_text = "repository,date,views\no/r,2026-01-01,\"1,234\"\n"
+        csv_text = 'repository,date,views\no/r,2026-01-01,"1,234"\n'
         df = process.process_uploaded_csv(io.StringIO(csv_text))
         assert int(df["views"].iloc[0]) == 1234
 
 
-
 class TestLib10SmallRepoStarHistoryErrors:
     def test_small_repo_429_raises_rate_limit(self):
-        meta = _resp(200, body={"stargazers_count": 5, "created_at": "2020-01-01T00:00:00Z"})
+        meta = _resp(
+            200, body={"stargazers_count": 5, "created_at": "2020-01-01T00:00:00Z"}
+        )
         limited = _resp(429, body=[], text="rate limit")
-        with patch("gitlytics.core.client._http_get", side_effect=[meta, limited]), \
-             patch("gitlytics.core.client.time.sleep"):
+        with (
+            patch("gitlytics.core.client._http_get", side_effect=[meta, limited]),
+            patch("gitlytics.core.client.time.sleep"),
+        ):
             with pytest.raises(GitHubRateLimitError):
                 fetch_star_history("owner", "repo")
 
     def test_small_repo_401_raises_fetch_error(self):
         from gitlytics.core import StarHistoryFetchError
 
-        meta = _resp(200, body={"stargazers_count": 5, "created_at": "2020-01-01T00:00:00Z"})
+        meta = _resp(
+            200, body={"stargazers_count": 5, "created_at": "2020-01-01T00:00:00Z"}
+        )
         unauth = _resp(401, body={}, text="Bad credentials")
-        with patch("gitlytics.core.client._http_get", side_effect=[meta, unauth]), \
-             patch("gitlytics.core.client.time.sleep"):
+        with (
+            patch("gitlytics.core.client._http_get", side_effect=[meta, unauth]),
+            patch("gitlytics.core.client.time.sleep"),
+        ):
             with pytest.raises(StarHistoryFetchError):
                 fetch_star_history("owner", "repo")
 
     def test_api_maps_rate_limit_to_429(self):
         from fastapi.testclient import TestClient
+
         from gitlytics.api import app
 
         with patch(
@@ -400,12 +467,14 @@ class TestLib10SmallRepoStarHistoryErrors:
         assert resp.status_code == 429
 
 
-
 class TestLib11CliErrorMapping:
     def test_fetch_rate_limit_exits_1_without_traceback(self, capsys):
         from gitlytics import cli
 
-        with patch("gitlytics.cli.commands.fetch_traffic", side_effect=GitHubRateLimitError("429")):
+        with patch(
+            "gitlytics.cli.commands.fetch_traffic",
+            side_effect=GitHubRateLimitError("429"),
+        ):
             with pytest.raises(SystemExit) as exc:
                 cli.main(["fetch", "--token", "t"])
         assert exc.value.code == 1
@@ -415,11 +484,12 @@ class TestLib11CliErrorMapping:
     def test_sync_rate_limit_exits_1(self, capsys):
         from gitlytics import cli
 
-        with patch("gitlytics.cli.commands.sync", side_effect=GitHubRateLimitError("429")):
+        with patch(
+            "gitlytics.cli.commands.sync", side_effect=GitHubRateLimitError("429")
+        ):
             with pytest.raises(SystemExit) as exc:
                 cli.main(["sync", "--token", "t"])
         assert exc.value.code == 1
-
 
 
 class TestLib12AtomicCsvWrite:
@@ -441,10 +511,11 @@ class TestLib12AtomicCsvWrite:
                 _write_csv_safely(str(target), pd.DataFrame({"a": [1]}))
 
         assert target.read_bytes() == b"OLD"
-        leftovers = [p.name for p in tmp_path.iterdir() if p.name.startswith(".tmp_csv_")]
+        leftovers = [
+            p.name for p in tmp_path.iterdir() if p.name.startswith(".tmp_csv_")
+        ]
         assert leftovers == []
         assert real_to_csv is not None  # keep the reference for readability
-
 
 
 class TestLib13VersionFlag:
@@ -458,17 +529,17 @@ class TestLib13VersionFlag:
         assert __version__ in capsys.readouterr().out
 
 
-
 class TestLib14CleanBuildStaging:
     def test_release_build_cleans_build_and_dist(self):
-        workflow = (ROOT / ".github" / "workflows" / "publish.yml").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github" / "workflows" / "publish.yml").read_text(
+            encoding="utf-8"
+        )
         assert "rm -rf build dist" in workflow
         assert workflow.index("rm -rf build dist") < workflow.index("python -m build")
 
     def test_no_stale_build_lib_tree(self):
         stale = ROOT / "build" / "lib"
         assert not stale.exists(), "remove gitlytics/build before building"
-
 
 
 class TestLib15LiveCliNegativeTests:

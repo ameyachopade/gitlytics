@@ -1,4 +1,5 @@
 """Offline tests for release workflows, action SHA pinning, and version consistency."""
+
 from __future__ import annotations
 
 import re

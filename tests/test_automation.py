@@ -3,40 +3,54 @@ tests/test_automation.py
 Unit tests for gitlytics/automation.py - CSV sync, deduplication, and schema migration.
 All network calls are mocked so these tests run completely offline.
 """
+
 import csv
 import os
-import pytest
-from unittest.mock import patch, MagicMock
-import pandas as pd
-from gitlytics.automation import run_sync_cycle, get_csv_path, _merge_schema, run_sync, TokenExpiredError
+from unittest.mock import MagicMock, patch
 
+import pandas as pd
+import pytest
+
+from gitlytics.automation import (
+    TokenExpiredError,
+    _merge_schema,
+    get_csv_path,
+    run_sync,
+    run_sync_cycle,
+)
 
 # Helper - build a minimal tidy-data DataFrame
 
+
 def _make_df(repo="user/repo", date="2025-06-14", views=5, clones=3):
     """Builds a one-row DataFrame that looks exactly like what fetch_traffic_data returns."""
-    return pd.DataFrame([{
-        "date": date,
-        "repository": repo,
-        "is_private": False,
-        "views": views,
-        "unique_visitors": 2,
-        "clones": clones,
-        "unique_cloners": 1,
-        "stars": 10,
-        "forks": 2,
-        "top_referrer": "",
-        "top_referrer_views": 0,
-        "top_referrer_uniques": 0,
-        "top_path": "",
-        "top_path_views": 0,
-        "top_path_uniques": 0,
-        "_raw_referrers": "[]",
-        "_raw_paths": "[]",
-    }])
+    return pd.DataFrame(
+        [
+            {
+                "date": date,
+                "repository": repo,
+                "is_private": False,
+                "views": views,
+                "unique_visitors": 2,
+                "clones": clones,
+                "unique_cloners": 1,
+                "stars": 10,
+                "forks": 2,
+                "top_referrer": "",
+                "top_referrer_views": 0,
+                "top_referrer_uniques": 0,
+                "top_path": "",
+                "top_path_views": 0,
+                "top_path_uniques": 0,
+                "_raw_referrers": "[]",
+                "_raw_paths": "[]",
+            }
+        ]
+    )
 
 
 # get_csv_path
+
 
 class TestGetCsvPath:
     def test_creates_data_dir(self, tmp_path):
@@ -59,11 +73,12 @@ class TestGetCsvPath:
         filename = os.path.basename(path)
         assert filename.startswith("traffic_")
         assert filename.endswith(".csv")
-        year_part = filename[len("traffic_"):-len(".csv")]
+        year_part = filename[len("traffic_") : -len(".csv")]
         assert len(year_part) == 4 and year_part.isdigit()
 
 
 # _merge_schema
+
 
 class TestMergeSchema:
     def test_preserves_existing_order(self):
@@ -95,6 +110,7 @@ class TestMergeSchema:
 
 
 # run_sync_cycle
+
 
 class TestRunSyncCycle:
     @patch("gitlytics.automation.scheduler.fetch_traffic_data")
@@ -184,11 +200,15 @@ class TestRunSyncCycle:
         run_sync_cycle("dummy_token", data_dir=str(tmp_path))
 
         # Second run: subset sync - only 'views' present in new DataFrame
-        subset_df = pd.DataFrame([{
-            "date": "2025-06-14",
-            "repository": "user/repo",
-            "views": 99,
-        }])
+        subset_df = pd.DataFrame(
+            [
+                {
+                    "date": "2025-06-14",
+                    "repository": "user/repo",
+                    "views": 99,
+                }
+            ]
+        )
         mock_fetch.return_value = subset_df
         run_sync_cycle("dummy_token", data_dir=str(tmp_path))
 
@@ -214,8 +234,8 @@ class TestRunSyncCycle:
         content = csv_file.read_text(encoding="utf-8")
         title_cased = (
             content.replace("date", "Date")
-                   .replace("repository", "Repository")
-                   .replace("views", "Views")
+            .replace("repository", "Repository")
+            .replace("views", "Views")
         )
         csv_file.write_text(title_cased, encoding="utf-8")
 
@@ -228,6 +248,7 @@ class TestRunSyncCycle:
 
 
 # Zero rows and uploaded previews must not poison exports
+
 
 class TestExportSafety:
     @patch("gitlytics.automation.scheduler.fetch_traffic_data")
@@ -247,21 +268,31 @@ class TestExportSafety:
 
     def test_uploaded_csv_is_excluded_from_export(self, tmp_path):
         from gitlytics.automation import export_json_database
+
         real = tmp_path / "traffic_2026-11.csv"
-        real.write_text("date,repository,is_private,views\n2026-11-01,user/real,False,5\n", encoding="utf-8")
+        real.write_text(
+            "date,repository,is_private,views\n2026-11-01,user/real,False,5\n",
+            encoding="utf-8",
+        )
         uploaded = tmp_path / "traffic_uploaded_deadbeef.csv"
-        uploaded.write_text("date,repository,is_private,views\n2026-11-01,attacker/poison,False,999\n", encoding="utf-8")
+        uploaded.write_text(
+            "date,repository,is_private,views\n2026-11-01,attacker/poison,False,999\n",
+            encoding="utf-8",
+        )
         export_file = tmp_path / "out.json"
         export_json_database(str(tmp_path), str(export_file), export_public_only=True)
 
         import json
+
         payload = json.loads(export_file.read_text(encoding="utf-8"))
         names = [repo["repository"] for repo in payload]
         assert names == ["user/real"]
 
     def test_concurrent_merges_do_not_lose_rows(self, tmp_path):
         import threading
+
         from gitlytics.automation import _write_df_to_csv
+
         csv_path = str(tmp_path / "traffic_2026-11.csv")
         errors = []
 
@@ -271,7 +302,9 @@ class TestExportSafety:
             except Exception as exc:  # pragma: no cover - failure path
                 errors.append(exc)
 
-        threads = [threading.Thread(target=worker, args=(f"user/repo{i}",)) for i in range(6)]
+        threads = [
+            threading.Thread(target=worker, args=(f"user/repo{i}",)) for i in range(6)
+        ]
         for t in threads:
             t.start()
         for t in threads:
@@ -280,10 +313,13 @@ class TestExportSafety:
         with open(csv_path, "r", encoding="utf-8") as f:
             rows = list(csv.DictReader(f))
         assert len(rows) == 6
-        assert {row["repository"] for row in rows} == {f"user/repo{i}" for i in range(6)}
+        assert {row["repository"] for row in rows} == {
+            f"user/repo{i}" for i in range(6)
+        }
 
 
 # Library sync raises TokenExpiredError instead of exiting the process
+
 
 class TestRunSyncTokenExpiry:
     @patch("gitlytics.automation.scheduler._interruptible_sleep")

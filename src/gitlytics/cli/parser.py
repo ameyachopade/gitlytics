@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """Argument parser and small CLI formatting helpers for Gitlytics."""
+
 from __future__ import annotations
 
 import argparse
@@ -64,34 +65,56 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Fetch subcommand for ad-hoc traffic queries.
-    fetch_parser = subparsers.add_parser("fetch", help="Fetch traffic for one or all repositories.")
+    fetch_parser = subparsers.add_parser(
+        "fetch", help="Fetch traffic for one or all repositories."
+    )
     fetch_parser.add_argument("-t", "--token", help="GitHub Personal Access Token.")
-    fetch_parser.add_argument("--repo-name", help="Specific repository or comma-separated list.")
-    fetch_parser.add_argument("--print-table", action="store_true", help="Print the ASCII traffic table.")
+    fetch_parser.add_argument(
+        "--repo-name", help="Specific repository or comma-separated list."
+    )
+    fetch_parser.add_argument(
+        "--print-table", action="store_true", help="Print the ASCII traffic table."
+    )
     fetch_parser.add_argument(
         "--return-format",
         choices=["dataframe", "timeseries", "summary"],
         default="dataframe",
         help="Data shape to return.",
     )
-    fetch_parser.add_argument("--save-file", help="Path to save the output (.csv or .json).")
     fetch_parser.add_argument(
-        "-m", "--metrics", nargs="*", default=None, help="Specific metrics to fetch (e.g. views clones)."
+        "--save-file", help="Path to save the output (.csv or .json)."
+    )
+    fetch_parser.add_argument(
+        "-m",
+        "--metrics",
+        nargs="*",
+        default=None,
+        help="Specific metrics to fetch (e.g. views clones).",
     )
 
     # Sync subcommand for incremental CSV archival and optional cron scheduling.
-    sync_parser = subparsers.add_parser("sync", help="Append traffic data to a local CSV database.")
+    sync_parser = subparsers.add_parser(
+        "sync", help="Append traffic data to a local CSV database."
+    )
     sync_parser.add_argument("-t", "--token", help="GitHub Personal Access Token.")
-    sync_parser.add_argument("--repo-name", help="Specific repository or comma-separated list.")
-    sync_parser.add_argument("--data-dir", default="./data", help="Directory to store CSVs.")
+    sync_parser.add_argument(
+        "--repo-name", help="Specific repository or comma-separated list."
+    )
+    sync_parser.add_argument(
+        "--data-dir", default="./data", help="Directory to store CSVs."
+    )
     sync_parser.add_argument(
         "--output-mode",
         choices=["monthly", "yearly"],
         default="monthly",
         help="Chunking strategy for CSV files.",
     )
-    sync_parser.add_argument("--schedule-cron", help="Cron expression for background daemon mode.")
-    sync_parser.add_argument("--export-json", help="Path to export the merged historical database as JSON.")
+    sync_parser.add_argument(
+        "--schedule-cron", help="Cron expression for background daemon mode."
+    )
+    sync_parser.add_argument(
+        "--export-json", help="Path to export the merged historical database as JSON."
+    )
     # Private repos are stripped from exported JSON by default unless explicitly opted in.
     sync_parser.add_argument(
         "--no-export-public-only",
@@ -104,7 +127,11 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     sync_parser.add_argument(
-        "-m", "--metrics", nargs="*", default=None, help="Specific metrics to sync (e.g. views clones)."
+        "-m",
+        "--metrics",
+        nargs="*",
+        default=None,
+        help="Specific metrics to sync (e.g. views clones).",
     )
     sync_parser.add_argument(
         "--public-only",
@@ -117,15 +144,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     # Dashboard subcommand for serving the bundled local React UI.
-    dash_parser = subparsers.add_parser("dashboard", help="Serve the local React dashboard.")
-    dash_parser.add_argument("--host", default="127.0.0.1", help="Host IP (default 127.0.0.1).")
+    dash_parser = subparsers.add_parser(
+        "dashboard", help="Serve the local React dashboard."
+    )
+    dash_parser.add_argument(
+        "--host", default="127.0.0.1", help="Host IP (default 127.0.0.1)."
+    )
     dash_parser.add_argument(
         "--public-bind",
         action="store_true",
         help="Allow binding to 0.0.0.0 (insecure without reverse-proxy auth).",
     )
     dash_parser.add_argument("--port", type=int, default=8000, help="Port to bind.")
-    dash_parser.add_argument("-t", "--token", help="GitHub token for headless TV display.")
+    dash_parser.add_argument(
+        "-t", "--token", help="GitHub token for headless TV display."
+    )
     dash_parser.add_argument("--data-dir", help="Inject historical CSV database.")
 
     # Stars subcommand for sampled cumulative star history.
@@ -133,7 +166,9 @@ def build_parser() -> argparse.ArgumentParser:
         "stars",
         help="Fetch sampled star history for a repo (Rarely used/Deprecated by GitHub API).",
     )
-    stars_parser.add_argument("repo", help="Repository in 'owner/repo' form (e.g. ameyachopade/gitlytics).")
+    stars_parser.add_argument(
+        "repo", help="Repository in 'owner/repo' form (e.g. ameyachopade/gitlytics)."
+    )
     stars_parser.add_argument("-t", "--token", help="GitHub Personal Access Token.")
 
     return parser

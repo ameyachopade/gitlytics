@@ -3,13 +3,15 @@ tests/test_star_history.py
 Unit tests for gitlytics/core.py::fetch_star_history.
 All GitHub API calls are mocked so these run offline.
 """
+
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 from gitlytics.core import (
-    fetch_star_history,
     GitHubRateLimitError,
     StarHistoryFetchError,
+    fetch_star_history,
 )
 
 
@@ -17,12 +19,15 @@ from gitlytics.core import (
 def _clear_restricted_cache():
     """Keep the process-local negative cache isolated between tests."""
     from gitlytics import core
+
     core._stargazer_restricted_cache.clear()
     yield
     core._stargazer_restricted_cache.clear()
 
 
-def _meta_response(stargazers_count: int, status: int = 200, created_at: str = "2020-01-01T00:00:00Z"):
+def _meta_response(
+    stargazers_count: int, status: int = 200, created_at: str = "2020-01-01T00:00:00Z"
+):
     """Build a mock GitHub repo metadata response."""
     resp = MagicMock()
     resp.status_code = status
@@ -176,10 +181,8 @@ class TestFetchStarHistoryLargeRepo:
         meta = _meta_response(5000, status=200)
         # Build 10 distinct page responses. Each page's LAST item carries
         # the date of the oldest star in that page.
-        page_dates = [f"2020-{i+1:02d}-15T00:00:00Z" for i in range(10)]
-        pages = [
-            _stargazer_page([page_dates[i]] * 100) for i in range(10)
-        ]
+        page_dates = [f"2020-{i + 1:02d}-15T00:00:00Z" for i in range(10)]
+        pages = [_stargazer_page([page_dates[i]] * 100) for i in range(10)]
         # 1 metadata call + 10 page calls.
         mock_get.side_effect = [meta] + pages
         points = fetch_star_history("owner", "repo")
@@ -187,7 +190,9 @@ class TestFetchStarHistoryLargeRepo:
         assert points[-1]["total"] == 5000
         # Timeline must span multiple distinct dates (not collapse to one).
         dates = {p["date"] for p in points}
-        assert len(dates) >= 5, f"Expected >=5 distinct dates, got {len(dates)}: {dates}"
+        assert len(dates) >= 5, (
+            f"Expected >=5 distinct dates, got {len(dates)}: {dates}"
+        )
         # Network calls: metadata + 10 stargazer pages.
         assert mock_get.call_count == 11
 
@@ -285,7 +290,11 @@ class TestFetchStarHistoryRestrictedFallback:
     def test_restriction_is_negatively_cached(self, mock_get):
         meta = _meta_response(5000, status=200, created_at="2019-03-04T12:00:00Z")
         restricted = _stargazer_page([], status=404)
-        mock_get.side_effect = [meta, restricted, _meta_response(5000, status=200, created_at="2019-03-04T12:00:00Z")]
+        mock_get.side_effect = [
+            meta,
+            restricted,
+            _meta_response(5000, status=200, created_at="2019-03-04T12:00:00Z"),
+        ]
         first = fetch_star_history("cached-owner", "cached-repo")
         second = fetch_star_history("cached-owner", "cached-repo")
         assert first == second

@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """Historical CSV database storage, locked merging, and JSON export."""
+
 from __future__ import annotations
 
 import csv
@@ -30,11 +31,17 @@ def get_csv_path(data_dir: str, mode: str, ref_date: datetime = None) -> str:
     data_dir_path.mkdir(parents=True, exist_ok=True)
 
     ref = ref_date or datetime.now(timezone.utc)
-    filename = f"traffic_{ref.year}.csv" if mode == "yearly" else f"traffic_{ref.strftime('%Y-%m')}.csv"
+    filename = (
+        f"traffic_{ref.year}.csv"
+        if mode == "yearly"
+        else f"traffic_{ref.strftime('%Y-%m')}.csv"
+    )
     return str(data_dir_path / filename)
 
 
-def export_json_database(data_dir: str, export_path: str, export_public_only: bool = True) -> None:
+def export_json_database(
+    data_dir: str, export_path: str, export_public_only: bool = True
+) -> None:
     """Merge all archive CSVs in data_dir and write a React-compatible JSON export atomically."""
     data_dir_path = Path(data_dir).resolve()
     if not data_dir_path.exists():
@@ -64,7 +71,9 @@ def export_json_database(data_dir: str, export_path: str, export_public_only: bo
 
     # Deduplicate overlapping monthly/yearly rows, keeping the newest schema revision.
     if "date" in master_df.columns and "repository" in master_df.columns:
-        master_df = master_df.drop_duplicates(subset=["date", "repository"], keep="last")
+        master_df = master_df.drop_duplicates(
+            subset=["date", "repository"], keep="last"
+        )
 
     if export_public_only:
         master_df = _filter_public_only_df(master_df)
@@ -101,10 +110,14 @@ def _merge_csv_locked(df: pd.DataFrame, csv_path: str) -> int:
                 key = (str(record.get("repository", "")), str(record.get("date", "")))
                 existing_data[key] = record
         except Exception as exc:
-            logger.warning(f"Could not read existing CSV '{csv_path}': {exc}. Starting fresh.")
+            logger.warning(
+                f"Could not read existing CSV '{csv_path}': {exc}. Starting fresh."
+            )
 
     new_fields = list(df.columns)
-    existing_fields = _merge_schema(existing_fields, new_fields) if existing_fields else new_fields
+    existing_fields = (
+        _merge_schema(existing_fields, new_fields) if existing_fields else new_fields
+    )
 
     # Guard cumulative daily counters so a zero glitch never wipes real history.
     monotonic_fields = {"views", "unique_visitors", "clones", "unique_cloners"}
@@ -142,7 +155,10 @@ def _merge_csv_locked(df: pd.DataFrame, csv_path: str) -> int:
             if nk in record:
                 val = record[nk]
             else:
-                match = next((orig for orig in record.keys() if _normalize_field(orig) == nk), None)
+                match = next(
+                    (orig for orig in record.keys() if _normalize_field(orig) == nk),
+                    None,
+                )
                 val = record[match] if match is not None else ""
             if val is None or (isinstance(val, float) and np.isnan(val)):
                 val = ""
@@ -150,8 +166,12 @@ def _merge_csv_locked(df: pd.DataFrame, csv_path: str) -> int:
         final_rows.append(clean_row)
 
     def _row_sort_key(row: dict) -> tuple[str, str]:
-        date_val = next((v for k, v in row.items() if _normalize_field(k) == "date"), "")
-        repo_val = next((v for k, v in row.items() if _normalize_field(k) == "repository"), "")
+        date_val = next(
+            (v for k, v in row.items() if _normalize_field(k) == "date"), ""
+        )
+        repo_val = next(
+            (v for k, v in row.items() if _normalize_field(k) == "repository"), ""
+        )
         return (str(date_val), str(repo_val))
 
     final_rows.sort(key=_row_sort_key)
@@ -164,7 +184,9 @@ def _merge_csv_locked(df: pd.DataFrame, csv_path: str) -> int:
     )
     try:
         with os.fdopen(fd, "w", newline="", encoding="utf-8") as handle:
-            writer = csv.DictWriter(handle, fieldnames=existing_fields, extrasaction="ignore")
+            writer = csv.DictWriter(
+                handle, fieldnames=existing_fields, extrasaction="ignore"
+            )
             writer.writeheader()
             writer.writerows(final_rows)
         os.replace(tmp_path, csv_path)

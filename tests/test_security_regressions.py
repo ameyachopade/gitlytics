@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """Offline regression tests for API auth, isolation, client, CLI, and release controls."""
+
 from __future__ import annotations
 
 import json
@@ -35,10 +36,12 @@ def test_traffic_scopes_data_dir_to_authenticated_owner(tmp_path):
         "2026-01-01,bob/public-repo,False,7\n",
         encoding="utf-8",
     )
-    with patch.dict(os.environ, {"GITLYTICS_DATA_DIR": str(tmp_path)}, clear=False), \
-         patch("gitlytics.api.cache._validate_token_cached", return_value=(True, "bob")), \
-         patch("gitlytics.api.cache.fetch_traffic_data", return_value=pd.DataFrame()), \
-         patch("gitlytics.api.cache.fetch_deep_stats_for_top", return_value={}):
+    with (
+        patch.dict(os.environ, {"GITLYTICS_DATA_DIR": str(tmp_path)}, clear=False),
+        patch("gitlytics.api.cache._validate_token_cached", return_value=(True, "bob")),
+        patch("gitlytics.api.cache.fetch_traffic_data", return_value=pd.DataFrame()),
+        patch("gitlytics.api.cache.fetch_deep_stats_for_top", return_value={}),
+    ):
         resp = TestClient(app).post("/api/traffic", json={"token": "bob-token"})
 
     assert resp.status_code == 200
@@ -79,7 +82,9 @@ def test_dns_rebinding_host_header_is_rejected():
 def test_upload_csv_enforces_cardinality_cap(tmp_path):
     """process_uploaded_csv rejects CSVs that exceed the unique repository limit."""
     csv_path = tmp_path / "many_repos.csv"
-    lines = ["date,repository,views"] + [f"2026-01-01,owner/r{i},1" for i in range(2005)]
+    lines = ["date,repository,views"] + [
+        f"2026-01-01,owner/r{i},1" for i in range(2005)
+    ]
     csv_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="unique repositories"):
@@ -97,8 +102,18 @@ def test_public_repos_search_includes_is_public_and_filters_private():
             captured_params.update(params or {})
             resp.json.return_value = {
                 "items": [
-                    {"name": "pub", "full_name": "alice/pub", "private": False, "stargazers_count": 10},
-                    {"name": "priv", "full_name": "alice/priv", "private": True, "stargazers_count": 99},
+                    {
+                        "name": "pub",
+                        "full_name": "alice/pub",
+                        "private": False,
+                        "stargazers_count": 10,
+                    },
+                    {
+                        "name": "priv",
+                        "full_name": "alice/priv",
+                        "private": True,
+                        "stargazers_count": 99,
+                    },
                 ]
             }
         else:
@@ -136,7 +151,12 @@ def test_export_public_only_drops_all_rows_of_private_repo(tmp_path):
 
 def test_unvalidated_full_name_rejected_in_deep_stats_and_traffic():
     """get_deep_repo_stats and get_repo_traffic reject path or fragment injection in full_name."""
-    for bad_name in ("owner/repo/tarball/HEAD#", "../../user", "owner/repo?x=1", "justrepo"):
+    for bad_name in (
+        "owner/repo/tarball/HEAD#",
+        "../../user",
+        "owner/repo?x=1",
+        "justrepo",
+    ):
         with pytest.raises(ValueError):
             get_deep_repo_stats("tok", bad_name)
         with pytest.raises(ValueError):
@@ -180,8 +200,10 @@ def test_cli_dashboard_does_not_promote_ambient_github_token():
     def fake_serve(**kwargs):
         captured.update(kwargs)
 
-    with patch.dict(os.environ, {"GITHUB_TOKEN": "ghp_ambient"}, clear=False), \
-         patch("gitlytics.cli.commands.serve_dashboard", side_effect=fake_serve):
+    with (
+        patch.dict(os.environ, {"GITHUB_TOKEN": "ghp_ambient"}, clear=False),
+        patch("gitlytics.cli.commands.serve_dashboard", side_effect=fake_serve),
+    ):
         os.environ.pop("GITLYTICS_TOKEN", None)
         cli_main(["dashboard"])
 
@@ -199,14 +221,19 @@ def test_cli_dashboard_gates_all_non_loopback_hosts_and_preserves_explicit_ip():
     assert exc.value.code == 2
 
     captured = {}
-    with patch("gitlytics.cli.commands.serve_dashboard", side_effect=lambda **kw: captured.update(kw)):
+    with patch(
+        "gitlytics.cli.commands.serve_dashboard",
+        side_effect=lambda **kw: captured.update(kw),
+    ):
         cli_main(["dashboard", "--host", "192.168.1.50", "--public-bind"])
     assert captured["host"] == "192.168.1.50"
 
 
 def test_publish_workflow_isolates_oidc_publish_from_build_and_test():
     """publish.yml must build/test once in the test job and only download/publish in pypi-publish."""
-    text = (REPO_ROOT / ".github" / "workflows" / "publish.yml").read_text(encoding="utf-8")
+    text = (REPO_ROOT / ".github" / "workflows" / "publish.yml").read_text(
+        encoding="utf-8"
+    )
     publish_section = text.split("  pypi-publish:", 1)[1]
     assert "actions/upload-artifact@" in text
     assert "actions/download-artifact@" in publish_section

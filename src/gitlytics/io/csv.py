@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """CSV header normalization, schema evolution, upload parsing, and date parsing."""
+
 from __future__ import annotations
 
 import logging
@@ -80,7 +81,9 @@ _MAX_UPLOAD_REPOS = 2_000
 
 def process_uploaded_csv(uploaded_file) -> pd.DataFrame:
     """Read an uploaded CSV file and normalize its headers, booleans, and numeric columns."""
-    raw_df = normalize_csv_dataframe(pd.read_csv(uploaded_file, nrows=_MAX_UPLOAD_ROWS + 1))
+    raw_df = normalize_csv_dataframe(
+        pd.read_csv(uploaded_file, nrows=_MAX_UPLOAD_ROWS + 1)
+    )
 
     if len(raw_df) > _MAX_UPLOAD_ROWS:
         raise ValueError(f"CSV exceeds maximum allowed row count ({_MAX_UPLOAD_ROWS}).")
@@ -89,7 +92,9 @@ def process_uploaded_csv(uploaded_file) -> pd.DataFrame:
     if "date" not in raw_df.columns:
         raise ValueError("Invalid CSV format: missing required 'date' column")
     if raw_df["repository"].nunique(dropna=True) > _MAX_UPLOAD_REPOS:
-        raise ValueError(f"CSV exceeds maximum allowed unique repositories ({_MAX_UPLOAD_REPOS}).")
+        raise ValueError(
+            f"CSV exceeds maximum allowed unique repositories ({_MAX_UPLOAD_REPOS})."
+        )
 
     if "is_private" in raw_df.columns:
         raw_df["is_private"] = raw_df["is_private"].map(_to_bool).astype(bool)

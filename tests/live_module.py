@@ -23,16 +23,16 @@ if __name__ == "__main__":
     if hasattr(sys.stderr, "reconfigure"):
         sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-
     import tempfile
-    import time
     import threading
+    import time
     from pathlib import Path
 
     # ── Load .env file so GITHUB_TOKEN / GITLYTICS_TOKEN are available ─────────────
     # Searches from this script's directory upward (covers both project root and tests/)
     try:
-        from dotenv import load_dotenv, find_dotenv
+        from dotenv import find_dotenv, load_dotenv
+
         _env_file = find_dotenv(usecwd=False, raise_error_if_not_found=False)
         if not _env_file:
             # Fallback: look for .env next to this script or one level up
@@ -49,27 +49,38 @@ if __name__ == "__main__":
         pass  # python-dotenv not installed; rely on environment variables already set
 
     # ── colour helpers ────────────────────────────────────────────────────────────
-    GREEN  = "\033[92m"
-    RED    = "\033[91m"
+    GREEN = "\033[92m"
+    RED = "\033[91m"
     YELLOW = "\033[93m"
-    CYAN   = "\033[96m"
-    BOLD   = "\033[1m"
-    RESET  = "\033[0m"
+    CYAN = "\033[96m"
+    BOLD = "\033[1m"
+    RESET = "\033[0m"
 
-    def ok(msg):    print(f"  {GREEN}✓{RESET}  {msg}")
-    def fail(msg):  print(f"  {RED}✗{RESET}  {msg}")
-    def info(msg):  print(f"  {CYAN}ℹ{RESET}  {msg}")
-    def warn(msg):  print(f"  {YELLOW}⚠{RESET}  {msg}")
+    def ok(msg):
+        print(f"  {GREEN}✓{RESET}  {msg}")
+
+    def fail(msg):
+        print(f"  {RED}✗{RESET}  {msg}")
+
+    def info(msg):
+        print(f"  {CYAN}ℹ{RESET}  {msg}")
+
+    def warn(msg):
+        print(f"  {YELLOW}⚠{RESET}  {msg}")
+
     def section(title):
-        print(f"\n{BOLD}{'─'*55}{RESET}")
+        print(f"\n{BOLD}{'─' * 55}{RESET}")
         print(f"{BOLD}  {title}{RESET}")
-        print(f"{BOLD}{'─'*55}{RESET}")
+        print(f"{BOLD}{'─' * 55}{RESET}")
 
     # ── import check ──────────────────────────────────────────────────────────────
     section("0 / 4  Import check")
     try:
         import gitlytics
-        ok(f"import gitlytics  →  version {gitlytics.__version__ if hasattr(gitlytics, '__version__') else '(no __version__)'}")
+
+        ok(
+            f"import gitlytics  →  version {gitlytics.__version__ if hasattr(gitlytics, '__version__') else '(no __version__)'}"
+        )
     except ImportError as exc:
         fail(f"Could not import gitlytics: {exc}")
         print("\nMake sure you installed it with:\n  pip install -e '.[dashboard]'")
@@ -82,6 +93,7 @@ if __name__ == "__main__":
         info(f"Using token from environment variable ({token[:8]}…)")
     else:
         import getpass
+
         token = getpass.getpass("  Enter your GitHub Personal Access Token: ").strip()
         if not token:
             fail("No token provided. Exiting.")
@@ -97,6 +109,7 @@ if __name__ == "__main__":
     try:
         df = gitlytics.fetch_traffic(token=token, return_format="dataframe")
         import pandas as pd
+
         assert isinstance(df, pd.DataFrame), "Expected a pandas DataFrame"
         ok(f"Returned DataFrame with {len(df)} rows and {len(df.columns)} columns")
         if not df.empty:
@@ -116,11 +129,15 @@ if __name__ == "__main__":
         assert "account_totals" in payload, "Missing 'account_totals' key"
         assert "repositories" in payload, "Missing 'repositories' key"
         repo_count = len(payload["repositories"])
-        ok(f"Returned timeseries payload with {repo_count} repositor{'y' if repo_count == 1 else 'ies'}")
+        ok(
+            f"Returned timeseries payload with {repo_count} repositor{'y' if repo_count == 1 else 'ies'}"
+        )
         totals = payload["account_totals"]
-        info(f"Account totals → views: {totals.get('total_views', 0)}, "
-             f"clones: {totals.get('total_clones', 0)}, "
-             f"stars: {totals.get('total_stars', 0)}")
+        info(
+            f"Account totals → views: {totals.get('total_views', 0)}, "
+            f"clones: {totals.get('total_clones', 0)}, "
+            f"stars: {totals.get('total_stars', 0)}"
+        )
     except Exception as exc:
         fail(f"fetch_traffic(return_format='timeseries') raised: {exc}")
 
@@ -157,7 +174,9 @@ if __name__ == "__main__":
     # 1f - save_file (CSV)
     print("\n  [1f] save_file=<path>.csv")
     try:
-        data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "data_module"))
+        data_dir = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "data", "data_module")
+        )
         os.makedirs(data_dir, exist_ok=True)
         tmp_path = os.path.join(data_dir, "test_output.csv")
         gitlytics.fetch_traffic(token=token, save_file=tmp_path)
@@ -169,10 +188,14 @@ if __name__ == "__main__":
     # 1g - save_file (JSON)
     print("\n  [1g] save_file=<path>.json")
     try:
-        data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data"))
+        data_dir = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "data")
+        )
         os.makedirs(data_dir, exist_ok=True)
         tmp_path = os.path.join(data_dir, "test_output.json")
-        gitlytics.fetch_traffic(token=token, return_format="dataframe", save_file=tmp_path)
+        gitlytics.fetch_traffic(
+            token=token, return_format="dataframe", save_file=tmp_path
+        )
         size = os.path.getsize(tmp_path)
         ok(f"JSON saved to {tmp_path}  ({size:,} bytes)")
     except Exception as exc:
@@ -183,7 +206,9 @@ if __name__ == "__main__":
     # ─────────────────────────────────────────────────────────────────────────────
     section("2 / 4  gitlytics.sync()")
 
-    data_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "data_module"))
+    data_dir = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "data", "data_module")
+    )
     os.makedirs(data_dir, exist_ok=True)
     csv_path = None  # track across sub-tests
 
@@ -193,7 +218,9 @@ if __name__ == "__main__":
         gitlytics.sync(token=token, data_dir=data_dir, output_mode="monthly")
         csv_files = [f for f in os.listdir(data_dir) if f.endswith(".csv")]
         if not csv_files:
-            warn("sync() wrote no CSV - token has no repositories or they all have 0 traffic")
+            warn(
+                "sync() wrote no CSV - token has no repositories or they all have 0 traffic"
+            )
             warn("Sub-tests 2b/2c will be skipped (need at least one repo to sync)")
         else:
             csv_path = os.path.join(data_dir, csv_files[0])
@@ -209,6 +236,7 @@ if __name__ == "__main__":
     else:
         try:
             import csv as csv_mod
+
             with open(csv_path, "r") as f:
                 rows_before = sum(1 for _ in csv_mod.reader(f)) - 1  # subtract header
 
@@ -218,9 +246,13 @@ if __name__ == "__main__":
                 rows_after = sum(1 for _ in csv_mod.reader(f)) - 1
 
             if rows_after == rows_before:
-                ok(f"No duplication: {rows_before} rows before, {rows_after} rows after")
+                ok(
+                    f"No duplication: {rows_before} rows before, {rows_after} rows after"
+                )
             elif rows_after > rows_before:
-                warn(f"Row count increased {rows_before} → {rows_after} (possible new data or overlap window)")
+                warn(
+                    f"Row count increased {rows_before} → {rows_after} (possible new data or overlap window)"
+                )
             else:
                 fail(f"Rows decreased: {rows_before} → {rows_after}")
         except Exception as exc:
@@ -230,6 +262,7 @@ if __name__ == "__main__":
     print("\n  [2c] sync() with export_json")
     try:
         import tempfile as _tf
+
         json_path = os.path.join(data_dir, "export.json")
         gitlytics.sync(
             token=token,
@@ -249,7 +282,11 @@ if __name__ == "__main__":
     print("\n  [2d] output_mode='yearly'")
     try:
         gitlytics.sync(token=token, data_dir=data_dir, output_mode="yearly")
-        yearly = [f for f in os.listdir(data_dir) if f.startswith("traffic_") and len(f) == len("traffic_YYYY.csv")]
+        yearly = [
+            f
+            for f in os.listdir(data_dir)
+            if f.startswith("traffic_") and len(f) == len("traffic_YYYY.csv")
+        ]
         ok(f"Yearly CSV written: {yearly}")
     except Exception as exc:
         fail(f"sync(output_mode='yearly') raised: {exc}")
@@ -276,6 +313,7 @@ if __name__ == "__main__":
 
     try:
         import urllib.request
+
         with urllib.request.urlopen("http://127.0.0.1:18765/", timeout=3) as resp:
             status = resp.status
         if status == 200:
@@ -291,8 +329,12 @@ if __name__ == "__main__":
 
     # Check /api/config endpoint
     try:
-        import urllib.request, json as _json
-        with urllib.request.urlopen("http://127.0.0.1:18765/api/config", timeout=3) as resp:
+        import json as _json
+        import urllib.request
+
+        with urllib.request.urlopen(
+            "http://127.0.0.1:18765/api/config", timeout=3
+        ) as resp:
             cfg = _json.loads(resp.read())
         assert "has_token" in cfg
         ok(f"/api/config → {cfg}")
@@ -308,14 +350,18 @@ if __name__ == "__main__":
 
     print("\n  Simulating missing uvicorn…")
     import unittest.mock as _mock
+
     import gitlytics as _gl
+
     with _mock.patch.dict("sys.modules", {"uvicorn": None}):
         try:
             _gl.serve_dashboard(port=18766)
             fail("Expected ImportError when uvicorn is missing")
         except ImportError as exc:
             if "dashboard" in str(exc):
-                ok("ImportError guard confirmed (serve_dashboard raised clean dashboard extra hint)")
+                ok(
+                    "ImportError guard confirmed (serve_dashboard raised clean dashboard extra hint)"
+                )
             else:
                 warn(f"ImportError raised with unexpected message: {exc}")
         except Exception as exc:

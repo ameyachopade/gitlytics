@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """Cumulative star-history sampling and restricted-endpoint fallback."""
+
 from __future__ import annotations
 
 import hashlib
@@ -13,9 +14,10 @@ from datetime import datetime, timedelta, timezone
 
 from gitlytics.exceptions import (
     GitHubRateLimitError,
-    StarHistoryFetchError,
     StargazersRestrictedError,
+    StarHistoryFetchError,
 )
+
 from . import client
 from .validation import validate_owner_repo
 
@@ -35,7 +37,9 @@ def _token_fingerprint(token: str | None) -> str:
     return hashlib.sha256(str(token).encode("utf-8")).hexdigest()[:16]
 
 
-def _stargazer_cache_key(owner: str, repo: str, token: str | None = None) -> tuple[str, str, str]:
+def _stargazer_cache_key(
+    owner: str, repo: str, token: str | None = None
+) -> tuple[str, str, str]:
     """Build a caller-scoped cache key for restricted stargazer lookups."""
     return (owner.strip().lower(), repo.strip().lower(), _token_fingerprint(token))
 
@@ -54,7 +58,9 @@ def _is_stargazers_restricted(owner: str, repo: str, token: str | None = None) -
         return True
 
 
-def _mark_stargazers_restricted(owner: str, repo: str, token: str | None = None) -> None:
+def _mark_stargazers_restricted(
+    owner: str, repo: str, token: str | None = None
+) -> None:
     """Record that /stargazers is restricted for this (owner, repo, caller) tuple."""
     key = _stargazer_cache_key(owner, repo, token)
     with _stargazer_restricted_lock:
@@ -102,7 +108,9 @@ def fetch_star_history(owner: str, repo: str, token: str | None = None) -> list[
     now = datetime.now(timezone.utc)
     today_str = now.strftime("%Y-%m-%d")
 
-    meta, status = client._safe_get(f"{client.BASE}/repos/{owner}/{repo}", _star_headers(token))
+    meta, status = client._safe_get(
+        f"{client.BASE}/repos/{owner}/{repo}", _star_headers(token)
+    )
     if status == 429:
         raise GitHubRateLimitError("GitHub rate limit reached, try again later")
     if status == 403:
@@ -140,14 +148,18 @@ def fetch_star_history(owner: str, repo: str, token: str | None = None) -> list[
                         timeout=10,
                     )
                 except Exception as exc:
-                    logger.warning(f"Stargazers fetch failed for {owner}/{repo} page {p}: {exc}")
+                    logger.warning(
+                        f"Stargazers fetch failed for {owner}/{repo} page {p}: {exc}"
+                    )
                     continue
                 if r.status_code == 404:
                     restricted = True
                     _mark_stargazers_restricted(owner, repo, token)
                     logger.warning(
                         "Stargazers endpoint restricted (HTTP 404) for %s/%s; "
-                        "returning an approximate timeline.", owner, repo,
+                        "returning an approximate timeline.",
+                        owner,
+                        repo,
                     )
                     break
                 if r.status_code == 401:
@@ -159,11 +171,15 @@ def fetch_star_history(owner: str, repo: str, token: str | None = None) -> list[
                     _mark_stargazers_restricted(owner, repo, token)
                     logger.warning(
                         "Stargazers endpoint restricted (HTTP 403) for %s/%s; "
-                        "returning an approximate timeline.", owner, repo,
+                        "returning an approximate timeline.",
+                        owner,
+                        repo,
                     )
                     break
                 if r.status_code in (403, 429):
-                    raise GitHubRateLimitError("GitHub rate limit reached, try again later")
+                    raise GitHubRateLimitError(
+                        "GitHub rate limit reached, try again later"
+                    )
                 if r.status_code != 200:
                     logger.warning(f"Stargazers page {p} returned HTTP {r.status_code}")
                     continue
@@ -178,7 +194,9 @@ def fetch_star_history(owner: str, repo: str, token: str | None = None) -> list[
                         continue
                     star_position = (p - 1) * small_per_page + offset + 1
                     if star_position >= 1:
-                        points.append({"date": str(starred_at)[:10], "total": star_position})
+                        points.append(
+                            {"date": str(starred_at)[:10], "total": star_position}
+                        )
         else:
             max_pages = 400
             total_pages = min((total_stars + per_page - 1) // per_page, max_pages)
@@ -186,10 +204,12 @@ def fetch_star_history(owner: str, repo: str, token: str | None = None) -> list[
             if total_pages <= sample_count:
                 sampled_pages = list(range(1, total_pages + 1))
             else:
-                sampled_pages = sorted({
-                    1 + round(i * (total_pages - 1) / (sample_count - 1))
-                    for i in range(sample_count)
-                })
+                sampled_pages = sorted(
+                    {
+                        1 + round(i * (total_pages - 1) / (sample_count - 1))
+                        for i in range(sample_count)
+                    }
+                )
             for p in sampled_pages:
                 try:
                     r = client._http_get(
@@ -199,14 +219,18 @@ def fetch_star_history(owner: str, repo: str, token: str | None = None) -> list[
                         timeout=10,
                     )
                 except Exception as exc:
-                    logger.warning(f"Stargazers fetch failed for {owner}/{repo} page {p}: {exc}")
+                    logger.warning(
+                        f"Stargazers fetch failed for {owner}/{repo} page {p}: {exc}"
+                    )
                     continue
                 if r.status_code == 404:
                     restricted = True
                     _mark_stargazers_restricted(owner, repo, token)
                     logger.warning(
                         "Stargazers endpoint restricted (HTTP 404) for %s/%s; "
-                        "returning an approximate timeline.", owner, repo,
+                        "returning an approximate timeline.",
+                        owner,
+                        repo,
                     )
                     break
                 if r.status_code == 401:
@@ -218,11 +242,15 @@ def fetch_star_history(owner: str, repo: str, token: str | None = None) -> list[
                     _mark_stargazers_restricted(owner, repo, token)
                     logger.warning(
                         "Stargazers endpoint restricted (HTTP 403) for %s/%s; "
-                        "returning an approximate timeline.", owner, repo,
+                        "returning an approximate timeline.",
+                        owner,
+                        repo,
                     )
                     break
                 if r.status_code in (403, 429):
-                    raise GitHubRateLimitError("GitHub rate limit reached, try again later")
+                    raise GitHubRateLimitError(
+                        "GitHub rate limit reached, try again later"
+                    )
                 if r.status_code != 200:
                     logger.warning(f"Stargazers page {p} returned HTTP {r.status_code}")
                     continue
@@ -237,11 +265,15 @@ def fetch_star_history(owner: str, repo: str, token: str | None = None) -> list[
                     continue
                 star_position = (p - 1) * per_page + len(items)
                 if star_position >= 1:
-                    points.append({"date": str(starred_at)[:10], "total": star_position})
+                    points.append(
+                        {"date": str(starred_at)[:10], "total": star_position}
+                    )
     except (GitHubRateLimitError, StargazersRestrictedError, StarHistoryFetchError):
         raise
     except Exception as exc:
-        logger.warning("Stargazers history fetch exception for %s/%s: %s", owner, repo, exc)
+        logger.warning(
+            "Stargazers history fetch exception for %s/%s: %s", owner, repo, exc
+        )
 
     if restricted and not points:
         return _approximate_star_history(meta, total_stars, today_str, now)
@@ -249,13 +281,21 @@ def fetch_star_history(owner: str, repo: str, token: str | None = None) -> list[
     # Fall back to recent WatchEvents when stargazer pages returned no dated points.
     if not points:
         try:
-            r_ev = client._http_get(f"{client.BASE}/repos/{owner}/{repo}/events", headers=headers, timeout=10)
+            r_ev = client._http_get(
+                f"{client.BASE}/repos/{owner}/{repo}/events",
+                headers=headers,
+                timeout=10,
+            )
             if r_ev.status_code == 200 and isinstance(r_ev.json(), list):
-                watch_dates = sorted([
-                    str(e.get("created_at"))[:10]
-                    for e in r_ev.json()
-                    if isinstance(e, dict) and e.get("type") == "WatchEvent" and e.get("created_at")
-                ])
+                watch_dates = sorted(
+                    [
+                        str(e.get("created_at"))[:10]
+                        for e in r_ev.json()
+                        if isinstance(e, dict)
+                        and e.get("type") == "WatchEvent"
+                        and e.get("created_at")
+                    ]
+                )
                 if watch_dates:
                     first_total = max(1, total_stars - len(watch_dates) + 1)
                     for i, d in enumerate(watch_dates):
@@ -276,7 +316,10 @@ def fetch_star_history(owner: str, repo: str, token: str | None = None) -> list[
 
     created_at_raw = meta.get("created_at") if isinstance(meta, dict) else None
     candidate_start = str(created_at_raw)[:10] if created_at_raw else ""
-    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", candidate_start) and candidate_start < today_str:
+    if (
+        re.fullmatch(r"\d{4}-\d{2}-\d{2}", candidate_start)
+        and candidate_start < today_str
+    ):
         start_date = candidate_start
     else:
         start_date = (now - timedelta(days=30)).strftime("%Y-%m-%d")

@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """GitHub user authentication checks and public profile/repository lookups."""
+
 from __future__ import annotations
 
 import logging
@@ -16,7 +17,9 @@ logger = logging.getLogger(__name__)
 def validate_token(token: str) -> tuple[bool, str]:
     """Check whether a GitHub token is valid and return (ok, login_or_reason)."""
     try:
-        r = client._http_get(f"{client.BASE}/user", headers=client.make_headers(token), timeout=10)
+        r = client._http_get(
+            f"{client.BASE}/user", headers=client.make_headers(token), timeout=10
+        )
         if r.status_code == 200:
             data = r.json()
             if not isinstance(data, dict):
@@ -46,7 +49,9 @@ def validate_token(token: str) -> tuple[bool, str]:
 def get_user_profile(token: str) -> dict:
     """Return the authenticated GitHub user's profile fields."""
     try:
-        r = client._http_get(f"{client.BASE}/user", headers=client.make_headers(token), timeout=10)
+        r = client._http_get(
+            f"{client.BASE}/user", headers=client.make_headers(token), timeout=10
+        )
         if r.status_code == 200:
             data = r.json()
             return {
@@ -68,7 +73,9 @@ def get_public_user(username: str, token: str | None = None) -> dict:
     username = validate_github_username(username)
     headers = client.make_headers(token) if token else client._PUBLIC_HEADERS
     try:
-        r = client._http_get(f"{client.BASE}/users/{username}", headers=headers, timeout=10)
+        r = client._http_get(
+            f"{client.BASE}/users/{username}", headers=headers, timeout=10
+        )
         if r.status_code == 200:
             data = r.json()
             return {
@@ -116,14 +123,21 @@ def _normalise_repo(repo: dict) -> dict:
     }
 
 
-def _fetch_public_repos_by_updated(username: str, per_page: int, token: str | None = None) -> list:
+def _fetch_public_repos_by_updated(
+    username: str, per_page: int, token: str | None = None
+) -> list:
     """Fetch a user's most recently updated public repositories."""
     headers = client.make_headers(token) if token else client._PUBLIC_HEADERS
     try:
         r = client._http_get(
             f"{client.BASE}/users/{username}/repos",
             headers=headers,
-            params={"per_page": per_page, "page": 1, "sort": "updated", "type": "public"},
+            params={
+                "per_page": per_page,
+                "page": 1,
+                "sort": "updated",
+                "type": "public",
+            },
             timeout=10,
         )
         if r.status_code != 200:
@@ -139,14 +153,21 @@ def _fetch_public_repos_by_updated(username: str, per_page: int, token: str | No
         return []
 
 
-def _fetch_public_repos_by_stars(username: str, per_page: int, token: str | None = None) -> list:
+def _fetch_public_repos_by_stars(
+    username: str, per_page: int, token: str | None = None
+) -> list:
     """Fetch a user's top-starred public repositories via the Search API."""
     headers = client.make_headers(token) if token else client._PUBLIC_HEADERS
     try:
         r = client._http_get(
             f"{client.BASE}/search/repositories",
             headers=headers,
-            params={"q": f"user:{username} is:public", "sort": "stars", "order": "desc", "per_page": per_page},
+            params={
+                "q": f"user:{username} is:public",
+                "sort": "stars",
+                "order": "desc",
+                "per_page": per_page,
+            },
             timeout=10,
         )
         if r.status_code != 200:
@@ -154,13 +175,19 @@ def _fetch_public_repos_by_stars(username: str, per_page: int, token: str | None
         data = r.json()
         if not isinstance(data, dict) or "items" not in data:
             return []
-        return [_normalise_repo(repo) for repo in data["items"] if not repo.get("private", False)]
+        return [
+            _normalise_repo(repo)
+            for repo in data["items"]
+            if not repo.get("private", False)
+        ]
     except Exception as exc:
         logger.warning(f"Could not fetch starred repos for {username}: {exc}")
         return []
 
 
-def get_public_repos(username: str, max_repos: int = 50, token: str | None = None) -> list:
+def get_public_repos(
+    username: str, max_repos: int = 50, token: str | None = None
+) -> list:
     """Merge a user's recently updated and most-starred public repos, sorted by stars."""
     username = validate_github_username(username)
     per_page = min(50, max_repos) if max_repos > 0 else 50

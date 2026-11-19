@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """Type coercion and JSON/React payload builders for tidy traffic DataFrames."""
+
 from __future__ import annotations
 
 import json
@@ -14,8 +15,14 @@ logger = logging.getLogger(__name__)
 
 # Columns that must stay numeric so pandas sums numbers instead of joining strings.
 _NUMERIC_COLUMNS = (
-    "views", "unique_visitors", "clones", "unique_cloners",
-    "stars", "forks", "watchers_count", "open_issues_count",
+    "views",
+    "unique_visitors",
+    "clones",
+    "unique_cloners",
+    "stars",
+    "forks",
+    "watchers_count",
+    "open_issues_count",
 )
 
 
@@ -89,7 +96,9 @@ def _coerce_numeric_columns(df: pd.DataFrame) -> pd.DataFrame:
         if col in df.columns:
             series = df[col]
             if not pd.api.types.is_numeric_dtype(series):
-                series = series.astype(str).str.replace(",", "", regex=False).str.strip()
+                series = (
+                    series.astype(str).str.replace(",", "", regex=False).str.strip()
+                )
             df[col] = pd.to_numeric(series, errors="coerce").fillna(0)
     return df
 
@@ -146,11 +155,32 @@ def build_json_payload(
         r_clones = _sum_metric(group, "clones")
         r_unique_v = _sum_metric(group, "unique_visitors")
         r_unique_c = _sum_metric(group, "unique_cloners")
-        r_stars = _safe_int(group["stars"].dropna().iloc[-1]) if "stars" in group.columns and not group["stars"].dropna().empty else 0
-        r_forks = _safe_int(group["forks"].dropna().iloc[-1]) if "forks" in group.columns and not group["forks"].dropna().empty else 0
-        r_is_private = _to_bool(group["is_private"].dropna().iloc[-1]) if "is_private" in group.columns and not group["is_private"].dropna().empty else False
-        top_ref = _safe_str(group["top_referrer"].dropna().iloc[-1]) if "top_referrer" in group.columns and not group["top_referrer"].dropna().empty else ""
-        top_path = _safe_str(group["top_path"].dropna().iloc[-1]) if "top_path" in group.columns and not group["top_path"].dropna().empty else ""
+        r_stars = (
+            _safe_int(group["stars"].dropna().iloc[-1])
+            if "stars" in group.columns and not group["stars"].dropna().empty
+            else 0
+        )
+        r_forks = (
+            _safe_int(group["forks"].dropna().iloc[-1])
+            if "forks" in group.columns and not group["forks"].dropna().empty
+            else 0
+        )
+        r_is_private = (
+            _to_bool(group["is_private"].dropna().iloc[-1])
+            if "is_private" in group.columns and not group["is_private"].dropna().empty
+            else False
+        )
+        top_ref = (
+            _safe_str(group["top_referrer"].dropna().iloc[-1])
+            if "top_referrer" in group.columns
+            and not group["top_referrer"].dropna().empty
+            else ""
+        )
+        top_path = (
+            _safe_str(group["top_path"].dropna().iloc[-1])
+            if "top_path" in group.columns and not group["top_path"].dropna().empty
+            else ""
+        )
 
         account_views += r_views
         account_clones += r_clones
@@ -218,8 +248,14 @@ def build_react_payload(df: pd.DataFrame, deep_stats: dict = None) -> list:
     repos = []
 
     deep_keys = (
-        "total_commits", "open_prs", "total_releases", "last_release_at",
-        "has_readme", "has_license", "has_contributing", "has_code_of_conduct",
+        "total_commits",
+        "open_prs",
+        "total_releases",
+        "last_release_at",
+        "has_readme",
+        "has_license",
+        "has_contributing",
+        "has_code_of_conduct",
     )
 
     for repo, group in df.groupby("repository"):
@@ -229,46 +265,118 @@ def build_react_payload(df: pd.DataFrame, deep_stats: dict = None) -> list:
         r_clones = _sum_metric(group, "clones")
         r_unique_v = _sum_metric(group, "unique_visitors")
         r_unique_c = _sum_metric(group, "unique_cloners")
-        r_stars = _safe_int(group["stars"].dropna().iloc[-1]) if "stars" in group.columns and not group["stars"].dropna().empty else 0
-        r_forks = _safe_int(group["forks"].dropna().iloc[-1]) if "forks" in group.columns and not group["forks"].dropna().empty else 0
-        r_is_private = _to_bool(group["is_private"].dropna().iloc[-1]) if "is_private" in group.columns and not group["is_private"].dropna().empty else False
+        r_stars = (
+            _safe_int(group["stars"].dropna().iloc[-1])
+            if "stars" in group.columns and not group["stars"].dropna().empty
+            else 0
+        )
+        r_forks = (
+            _safe_int(group["forks"].dropna().iloc[-1])
+            if "forks" in group.columns and not group["forks"].dropna().empty
+            else 0
+        )
+        r_is_private = (
+            _to_bool(group["is_private"].dropna().iloc[-1])
+            if "is_private" in group.columns and not group["is_private"].dropna().empty
+            else False
+        )
 
-        top_ref = _safe_str(group["top_referrer"].dropna().iloc[-1]) if "top_referrer" in group.columns and not group["top_referrer"].dropna().empty else ""
-        top_ref_views = _safe_int(group["top_referrer_views"].dropna().iloc[-1]) if "top_referrer_views" in group.columns and not group["top_referrer_views"].dropna().empty else 0
-        top_ref_uniques = _safe_int(group["top_referrer_uniques"].dropna().iloc[-1]) if "top_referrer_uniques" in group.columns and not group["top_referrer_uniques"].dropna().empty else 0
-        top_path = _safe_str(group["top_path"].dropna().iloc[-1]) if "top_path" in group.columns and not group["top_path"].dropna().empty else ""
-        top_path_views = _safe_int(group["top_path_views"].dropna().iloc[-1]) if "top_path_views" in group.columns and not group["top_path_views"].dropna().empty else 0
-        top_path_uniques = _safe_int(group["top_path_uniques"].dropna().iloc[-1]) if "top_path_uniques" in group.columns and not group["top_path_uniques"].dropna().empty else 0
+        top_ref = (
+            _safe_str(group["top_referrer"].dropna().iloc[-1])
+            if "top_referrer" in group.columns
+            and not group["top_referrer"].dropna().empty
+            else ""
+        )
+        top_ref_views = (
+            _safe_int(group["top_referrer_views"].dropna().iloc[-1])
+            if "top_referrer_views" in group.columns
+            and not group["top_referrer_views"].dropna().empty
+            else 0
+        )
+        top_ref_uniques = (
+            _safe_int(group["top_referrer_uniques"].dropna().iloc[-1])
+            if "top_referrer_uniques" in group.columns
+            and not group["top_referrer_uniques"].dropna().empty
+            else 0
+        )
+        top_path = (
+            _safe_str(group["top_path"].dropna().iloc[-1])
+            if "top_path" in group.columns and not group["top_path"].dropna().empty
+            else ""
+        )
+        top_path_views = (
+            _safe_int(group["top_path_views"].dropna().iloc[-1])
+            if "top_path_views" in group.columns
+            and not group["top_path_views"].dropna().empty
+            else 0
+        )
+        top_path_uniques = (
+            _safe_int(group["top_path_uniques"].dropna().iloc[-1])
+            if "top_path_uniques" in group.columns
+            and not group["top_path_uniques"].dropna().empty
+            else 0
+        )
 
         # Pick the latest non-null repo metadata values from the tidy rows.
-        language = _safe_str(group["language"].dropna().iloc[-1]) if "language" in group.columns and not group["language"].dropna().empty else None
-        watchers_count = _safe_int(group["watchers_count"].dropna().iloc[-1]) if "watchers_count" in group.columns and not group["watchers_count"].dropna().empty else 0
-        open_issues_count = _safe_int(group["open_issues_count"].dropna().iloc[-1]) if "open_issues_count" in group.columns and not group["open_issues_count"].dropna().empty else 0
-        pushed_at = _safe_str(group["pushed_at"].dropna().iloc[-1]) if "pushed_at" in group.columns and not group["pushed_at"].dropna().empty else None
-        created_at = _safe_str(group["created_at"].dropna().iloc[-1]) if "created_at" in group.columns and not group["created_at"].dropna().empty else None
+        language = (
+            _safe_str(group["language"].dropna().iloc[-1])
+            if "language" in group.columns and not group["language"].dropna().empty
+            else None
+        )
+        watchers_count = (
+            _safe_int(group["watchers_count"].dropna().iloc[-1])
+            if "watchers_count" in group.columns
+            and not group["watchers_count"].dropna().empty
+            else 0
+        )
+        open_issues_count = (
+            _safe_int(group["open_issues_count"].dropna().iloc[-1])
+            if "open_issues_count" in group.columns
+            and not group["open_issues_count"].dropna().empty
+            else 0
+        )
+        pushed_at = (
+            _safe_str(group["pushed_at"].dropna().iloc[-1])
+            if "pushed_at" in group.columns and not group["pushed_at"].dropna().empty
+            else None
+        )
+        created_at = (
+            _safe_str(group["created_at"].dropna().iloc[-1])
+            if "created_at" in group.columns and not group["created_at"].dropna().empty
+            else None
+        )
 
-        topics_raw = group["topics"].dropna().iloc[-1] if "topics" in group.columns and not group["topics"].dropna().empty else None
+        topics_raw = (
+            group["topics"].dropna().iloc[-1]
+            if "topics" in group.columns and not group["topics"].dropna().empty
+            else None
+        )
         topics = _parse_raw(topics_raw) if topics_raw else []
 
         daily_views = []
         daily_clones = []
         for record in group.to_dict("records"):
             date_str = str(record.get("date", ""))
-            daily_views.append({
-                "timestamp": date_str,
-                "count": _safe_int(record.get("views", 0)),
-                "uniques": _safe_int(record.get("unique_visitors", 0)),
-            })
-            daily_clones.append({
-                "timestamp": date_str,
-                "count": _safe_int(record.get("clones", 0)),
-                "uniques": _safe_int(record.get("unique_cloners", 0)),
-            })
+            daily_views.append(
+                {
+                    "timestamp": date_str,
+                    "count": _safe_int(record.get("views", 0)),
+                    "uniques": _safe_int(record.get("unique_visitors", 0)),
+                }
+            )
+            daily_clones.append(
+                {
+                    "timestamp": date_str,
+                    "count": _safe_int(record.get("clones", 0)),
+                    "uniques": _safe_int(record.get("unique_cloners", 0)),
+                }
+            )
 
         # Keep the newest non-null referrer/path snapshots even if today's row is empty.
         raw_refs_val = (
             group["_raw_referrers"].dropna().iloc[-1]
-            if "_raw_referrers" in group.columns and not group["_raw_referrers"].dropna().empty
+            if "_raw_referrers" in group.columns
+            and not group["_raw_referrers"].dropna().empty
             else None
         )
         raw_paths_val = (
@@ -280,9 +388,22 @@ def build_react_payload(df: pd.DataFrame, deep_stats: dict = None) -> list:
         full_paths = _parse_raw(raw_paths_val)
 
         if not full_refs and top_ref:
-            full_refs = [{"referrer": top_ref, "count": top_ref_views, "uniques": top_ref_uniques}]
+            full_refs = [
+                {
+                    "referrer": top_ref,
+                    "count": top_ref_views,
+                    "uniques": top_ref_uniques,
+                }
+            ]
         if not full_paths and top_path:
-            full_paths = [{"path": top_path, "title": top_path, "count": top_path_views, "uniques": top_path_uniques}]
+            full_paths = [
+                {
+                    "path": top_path,
+                    "title": top_path,
+                    "count": top_path_views,
+                    "uniques": top_path_uniques,
+                }
+            ]
 
         repo_obj = {
             "repository": repo,

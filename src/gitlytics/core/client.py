@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """Pooled HTTP transport, auth headers, retry budgets, and deadline management."""
+
 from __future__ import annotations
 
 import contextlib
@@ -141,7 +142,9 @@ def _safe_get(url: str, headers: dict, params: dict = None) -> tuple:
     slept = 0.0
     for attempt in range(max_attempts):
         if time.monotonic() >= deadline:
-            logger.warning("Skipping %s because the operation deadline has expired.", url)
+            logger.warning(
+                "Skipping %s because the operation deadline has expired.", url
+            )
             return {}, -1
         try:
             r = _http_get(url, headers=headers, params=params, timeout=10)
@@ -155,17 +158,16 @@ def _safe_get(url: str, headers: dict, params: dict = None) -> tuple:
 
             response_headers = getattr(r, "headers", None) or {}
             text_lower = r.text.lower() if r.text else ""
-            is_secondary_limit = (
-                r.status_code == 403
-                and (
-                    response_headers.get("Retry-After")
-                    or response_headers.get("x-ratelimit-remaining") == "0"
-                    or "rate limit" in text_lower
-                    or "abuse" in text_lower
-                )
+            is_secondary_limit = r.status_code == 403 and (
+                response_headers.get("Retry-After")
+                or response_headers.get("x-ratelimit-remaining") == "0"
+                or "rate limit" in text_lower
+                or "abuse" in text_lower
             )
 
-            if (r.status_code in (429, 500, 502, 503, 504) or is_secondary_limit) and attempt < max_attempts - 1:
+            if (
+                r.status_code in (429, 500, 502, 503, 504) or is_secondary_limit
+            ) and attempt < max_attempts - 1:
                 retry_after = 0.0
                 try:
                     retry_after = float(response_headers.get("Retry-After", 0) or 0)
@@ -173,17 +175,22 @@ def _safe_get(url: str, headers: dict, params: dict = None) -> tuple:
                     retry_after = 0.0
                 if retry_after <= 0 and response_headers.get("X-RateLimit-Reset"):
                     try:
-                        wait_for = float(response_headers["X-RateLimit-Reset"]) - time.time()
+                        wait_for = (
+                            float(response_headers["X-RateLimit-Reset"]) - time.time()
+                        )
                         if 0 < wait_for <= 60:
                             retry_after = wait_for
                     except (TypeError, ValueError):
                         pass
-                delay = min(60.0, retry_after if retry_after > 0 else 0.25 * (2 ** attempt))
+                delay = min(
+                    60.0, retry_after if retry_after > 0 else 0.25 * (2**attempt)
+                )
                 delay, exhausted = _cap_backoff(delay, slept, deadline)
                 if exhausted:
                     logger.warning(
                         "Giving up on %s after %d attempt(s) - backoff budget exhausted.",
-                        url, attempt + 1,
+                        url,
+                        attempt + 1,
                     )
                     if r.status_code == 429 or is_secondary_limit:
                         return {}, 429
@@ -195,7 +202,9 @@ def _safe_get(url: str, headers: dict, params: dict = None) -> tuple:
 
             if r.status_code == 429 or is_secondary_limit:
                 # Normalize secondary-limit 403s to 429 so callers classify them uniformly.
-                logger.warning(f"GitHub API rate limit hit (HTTP {r.status_code}) for {url}.")
+                logger.warning(
+                    f"GitHub API rate limit hit (HTTP {r.status_code}) for {url}."
+                )
                 return {}, 429
             if r.status_code == 403:
                 logger.warning(f"Access denied (403) for {url}.")
@@ -204,9 +213,11 @@ def _safe_get(url: str, headers: dict, params: dict = None) -> tuple:
             return {}, r.status_code
         except requests.exceptions.Timeout:
             if attempt < max_attempts - 1:
-                delay, exhausted = _cap_backoff(0.25 * (2 ** attempt), slept, deadline)
+                delay, exhausted = _cap_backoff(0.25 * (2**attempt), slept, deadline)
                 if exhausted:
-                    logger.warning("Request timed out for %s - backoff budget exhausted.", url)
+                    logger.warning(
+                        "Request timed out for %s - backoff budget exhausted.", url
+                    )
                     return {}, -1
                 time.sleep(delay)
                 slept += delay

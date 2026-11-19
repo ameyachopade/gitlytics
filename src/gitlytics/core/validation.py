@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """Validation helpers for GitHub usernames and owner/repo identifiers."""
+
 from __future__ import annotations
 
 import re

@@ -5,14 +5,13 @@
 from gitlytics.exceptions import (
     GitHubAPIError,
     GitHubRateLimitError,
-    StarHistoryFetchError,
     StargazersRestrictedError,
+    StarHistoryFetchError,
     TokenExpiredError,
 )
 from gitlytics.io.formatting import print_repo_table
 
 from .client import (
-    BASE,
     _BACKOFF_ANNOUNCE_THRESHOLD,
     _GITHUB_BASE_HEADERS,
     _PER_PAGE,
@@ -20,6 +19,7 @@ from .client import (
     _REQUEST_DEADLINE_SECONDS,
     _RETRY_BUDGET_SECONDS,
     _SESSION_LOCAL,
+    BASE,
     _active_deadline,
     _announce_backoff,
     _cap_backoff,

@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """HTTP API endpoints and SPA fallback routes for the local dashboard server."""
+
 from __future__ import annotations
 
 import logging
@@ -14,16 +15,22 @@ from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, Re
 from fastapi.responses import FileResponse, JSONResponse
 
 from gitlytics.core.stars import fetch_star_history
-from gitlytics.core.users import get_public_repos, get_public_user, get_user_profile, validate_token
+from gitlytics.core.users import (
+    get_public_repos,
+    get_public_user,
+    get_user_profile,
+    validate_token,
+)
 from gitlytics.core.validation import validate_github_username
 from gitlytics.exceptions import (
     GitHubRateLimitError,
-    StarHistoryFetchError,
     StargazersRestrictedError,
+    StarHistoryFetchError,
     TokenExpiredError,
 )
 from gitlytics.io.csv import process_uploaded_csv
 from gitlytics.io.payloads import _to_bool, build_react_payload
+
 from . import cache
 from .security import (
     STATIC_DIR,
@@ -56,7 +63,9 @@ def auth(request: Request, token: str = Body("", embed=True)):
     _require_browser_same_origin(request)
     active_token = _get_token(token)
     if not active_token:
-        raise HTTPException(status_code=401, detail="No token provided and no environment token found.")
+        raise HTTPException(
+            status_code=401, detail="No token provided and no environment token found."
+        )
 
     ok, username = validate_token(active_token)
     if not ok:
@@ -97,7 +106,9 @@ def _fetch_username_data(username: str, token: str | None = None) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     except RuntimeError:
-        raise HTTPException(status_code=502, detail="GitHub is temporarily unavailable.")
+        raise HTTPException(
+            status_code=502, detail="GitHub is temporarily unavailable."
+        )
     except Exception as exc:
         logger.warning("Username fetch failed for %s: %s", username, exc)
         raise HTTPException(status_code=500, detail="Failed to fetch GitHub data.")
@@ -114,7 +125,11 @@ def get_username_data_by_path(
     tok = None
     if authorization:
         parts = authorization.strip().split(None, 1)
-        tok = parts[1].strip() if len(parts) == 2 and parts[0].lower() == "bearer" else authorization.strip()
+        tok = (
+            parts[1].strip()
+            if len(parts) == 2 and parts[0].lower() == "bearer"
+            else authorization.strip()
+        )
     return _fetch_username_data(username, token=tok)
 
 
@@ -130,7 +145,11 @@ def get_username_data(
     tok = (token or "").strip() or None
     if not tok and authorization:
         parts = authorization.strip().split(None, 1)
-        tok = parts[1].strip() if len(parts) == 2 and parts[0].lower() == "bearer" else authorization.strip()
+        tok = (
+            parts[1].strip()
+            if len(parts) == 2 and parts[0].lower() == "bearer"
+            else authorization.strip()
+        )
     return _fetch_username_data(username, token=tok)
 
 
@@ -154,7 +173,11 @@ def get_traffic(request: Request, token: str = Body("", embed=True)):
             logger.warning(f"Data directory '{data_dir}' does not exist.")
         else:
             csv_files = sorted(
-                (f for f in data_dir_path.glob("traffic_*.csv") if _SYNC_CSV_RE.match(f.name)),
+                (
+                    f
+                    for f in data_dir_path.glob("traffic_*.csv")
+                    if _SYNC_CSV_RE.match(f.name)
+                ),
                 key=lambda f: (len(f.stem), f.name),
             )
             if not csv_files:
@@ -167,7 +190,9 @@ def get_traffic(request: Request, token: str = Body("", embed=True)):
                     continue
                 missing = [c for c in ("date", "repository") if c not in frame.columns]
                 if missing:
-                    logger.warning(f"Skipping CSV '{csv_file}': missing required column(s) {missing}.")
+                    logger.warning(
+                        f"Skipping CSV '{csv_file}': missing required column(s) {missing}."
+                    )
                     continue
                 dfs.append(frame)
 
@@ -190,13 +215,17 @@ def get_traffic(request: Request, token: str = Body("", embed=True)):
                 else set()
             )
             repo_col = csv_df["repository"].fillna("").astype(str)
-            owner_match = repo_col.str.split("/", n=1).str[0].str.lower() == caller_login
+            owner_match = (
+                repo_col.str.split("/", n=1).str[0].str.lower() == caller_login
+            )
             live_match = repo_col.str.lower().isin(live_repos) if live_repos else False
             csv_df = csv_df[owner_match | live_match]
         if not live_df.empty:
             df = pd.concat([csv_df, live_df], ignore_index=True)
             if "date" in df.columns and "repository" in df.columns:
-                df = df.groupby(["date", "repository"], as_index=False, sort=False).last()
+                df = df.groupby(
+                    ["date", "repository"], as_index=False, sort=False
+                ).last()
         else:
             df = csv_df
             if "date" in df.columns and "repository" in df.columns:
@@ -216,9 +245,13 @@ def get_traffic(request: Request, token: str = Body("", embed=True)):
         for repo_name, group in df.groupby("repository"):
             series = group["views"]
             if not pd.api.types.is_numeric_dtype(series):
-                series = series.astype(str).str.replace(",", "", regex=False).str.strip()
+                series = (
+                    series.astype(str).str.replace(",", "", regex=False).str.strip()
+                )
             views_total = int(pd.to_numeric(series, errors="coerce").fillna(0).sum())
-            repos_with_views.append({"repository": repo_name, "total_views": views_total})
+            repos_with_views.append(
+                {"repository": repo_name, "total_views": views_total}
+            )
 
     deep_stats = {}
     if repos_with_views and active_token:
@@ -236,7 +269,9 @@ def get_star_history_endpoint(
 ):
     """Fetch cumulative star history using the caller's explicit Bearer token."""
     if not authorization:
-        raise HTTPException(status_code=401, detail="Authorization bearer token required.")
+        raise HTTPException(
+            status_code=401, detail="Authorization bearer token required."
+        )
     parts = authorization.strip().split(None, 1)
     if len(parts) != 2 or parts[0].lower() != "bearer" or not parts[1].strip():
         raise HTTPException(status_code=401, detail="Malformed Authorization header.")
@@ -359,7 +394,9 @@ def serve_spa_fallback(full_path: str):
     except (OSError, ValueError):
         return JSONResponse(status_code=404, content={"error": "Not found."})
 
-    if (asset_file == frontend_root or asset_file.is_relative_to(frontend_root)) and asset_file.is_file():
+    if (
+        asset_file == frontend_root or asset_file.is_relative_to(frontend_root)
+    ) and asset_file.is_file():
         return FileResponse(asset_file)
 
     index_file = STATIC_DIR / "index.html"

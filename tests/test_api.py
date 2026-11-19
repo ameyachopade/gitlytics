@@ -9,23 +9,26 @@ Run with:
 
 Note: requires httpx2  →  pip install httpx2
 """
+
 import io
 import json
-import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 import pandas as pd
+import pytest
 
 # TestClient requires httpx2 - skip the whole module gracefully if not installed
 try:
     from fastapi.testclient import TestClient
+
     from gitlytics.api import app
+
     HAS_TESTCLIENT = True
 except Exception:
     HAS_TESTCLIENT = False
 
 pytestmark = pytest.mark.skipif(
-    not HAS_TESTCLIENT,
-    reason="httpx2 not installed - run: pip install httpx2"
+    not HAS_TESTCLIENT, reason="httpx2 not installed - run: pip install httpx2"
 )
 
 # One shared client for all tests - no server startup needed
@@ -34,27 +37,36 @@ client = TestClient(app, raise_server_exceptions=True)
 
 # Helper factories
 
+
 def _make_tidy_df(repo="user/repo", views=10, clones=5, is_private=False):
     """Builds a minimal one-row tidy DataFrame as returned by fetch_traffic_data."""
-    return pd.DataFrame([{
-        "date": "2025-06-14",
-        "repository": repo,
-        "is_private": is_private,
-        "views": views,
-        "unique_visitors": 4,
-        "clones": clones,
-        "unique_cloners": 2,
-        "stars": 20,
-        "forks": 3,
-        "top_referrer": "github.com",
-        "top_referrer_views": 5,
-        "top_referrer_uniques": 2,
-        "top_path": "/README.md",
-        "top_path_views": 4,
-        "top_path_uniques": 1,
-        "_raw_referrers": json.dumps([{"referrer": "github.com", "count": 5, "uniques": 2}]),
-        "_raw_paths":     json.dumps([{"path": "/README.md", "count": 4, "uniques": 1}]),
-    }])
+    return pd.DataFrame(
+        [
+            {
+                "date": "2025-06-14",
+                "repository": repo,
+                "is_private": is_private,
+                "views": views,
+                "unique_visitors": 4,
+                "clones": clones,
+                "unique_cloners": 2,
+                "stars": 20,
+                "forks": 3,
+                "top_referrer": "github.com",
+                "top_referrer_views": 5,
+                "top_referrer_uniques": 2,
+                "top_path": "/README.md",
+                "top_path_views": 4,
+                "top_path_uniques": 1,
+                "_raw_referrers": json.dumps(
+                    [{"referrer": "github.com", "count": 5, "uniques": 2}]
+                ),
+                "_raw_paths": json.dumps(
+                    [{"path": "/README.md", "count": 4, "uniques": 1}]
+                ),
+            }
+        ]
+    )
 
 
 def _make_csv_body(headers, row):
@@ -64,6 +76,7 @@ def _make_csv_body(headers, row):
 
 
 # /api/config
+
 
 class TestConfigEndpoint:
     def test_returns_200(self):
@@ -81,6 +94,7 @@ class TestConfigEndpoint:
         # With no GITLYTICS_TOKEN in env, has_token should be False
         with patch.dict("os.environ", {}, clear=False):
             import os
+
             os.environ.pop("GITLYTICS_TOKEN", None)
             data = client.get("/api/config").json()
         assert data["has_token"] is False
@@ -93,11 +107,17 @@ class TestConfigEndpoint:
 
 # /api/auth
 
+
 class TestAuthEndpoint:
     @patch("gitlytics.api.routes.validate_token", return_value=(True, "ameyachopade"))
-    @patch("gitlytics.api.routes.get_user_profile", return_value={
-        "login": "ameyachopade", "name": "Ameya Chopade", "avatar_url": "https://avatars.github.com/u/1"
-    })
+    @patch(
+        "gitlytics.api.routes.get_user_profile",
+        return_value={
+            "login": "ameyachopade",
+            "name": "Ameya Chopade",
+            "avatar_url": "https://avatars.github.com/u/1",
+        },
+    )
     def test_valid_token_returns_authenticated(self, mock_profile, mock_validate):
         # A valid token should give back authenticated=True with the user's profile
         response = client.post("/api/auth", json={"token": "valid_token"})
@@ -108,7 +128,10 @@ class TestAuthEndpoint:
         assert data["name"] == "Ameya Chopade"
         assert "avatar_url" in data
 
-    @patch("gitlytics.api.routes.validate_token", return_value=(False, "Invalid token - 401 Unauthorized."))
+    @patch(
+        "gitlytics.api.routes.validate_token",
+        return_value=(False, "Invalid token - 401 Unauthorized."),
+    )
     def test_invalid_token_returns_401(self, mock_validate):
         # A bad or expired token must return HTTP 401
         response = client.post("/api/auth", json={"token": "bad_token"})
@@ -118,14 +141,20 @@ class TestAuthEndpoint:
         # Sending an empty body with no token and no env token must return 401
         with patch.dict("os.environ", {}, clear=False):
             import os
+
             os.environ.pop("GITLYTICS_TOKEN", None)
             response = client.post("/api/auth", json={"token": ""})
         assert response.status_code == 401
 
     @patch("gitlytics.api.routes.validate_token", return_value=(True, "ameyachopade"))
-    @patch("gitlytics.api.routes.get_user_profile", return_value={
-        "login": "ameyachopade", "name": "Ameya Chopade", "avatar_url": "https://avatars.github.com/u/1"
-    })
+    @patch(
+        "gitlytics.api.routes.get_user_profile",
+        return_value={
+            "login": "ameyachopade",
+            "name": "Ameya Chopade",
+            "avatar_url": "https://avatars.github.com/u/1",
+        },
+    )
     def test_response_has_all_profile_fields(self, mock_profile, mock_validate):
         # The dashboard needs login, name, and avatar_url - all three must be present
         data = client.post("/api/auth", json={"token": "valid_token"}).json()
@@ -134,9 +163,10 @@ class TestAuthEndpoint:
         assert "avatar_url" in data
 
     @patch("gitlytics.api.routes.validate_token", return_value=(True, "ameyachopade"))
-    @patch("gitlytics.api.routes.get_user_profile", return_value={
-        "login": "ameyachopade", "name": "", "avatar_url": ""
-    })
+    @patch(
+        "gitlytics.api.routes.get_user_profile",
+        return_value={"login": "ameyachopade", "name": "", "avatar_url": ""},
+    )
     def test_null_display_name_falls_back_to_login(self, mock_profile, mock_validate):
         # If the user has no display name set on GitHub, fall back to their username
         data = client.post("/api/auth", json={"token": "valid_token"}).json()
@@ -145,6 +175,7 @@ class TestAuthEndpoint:
 
 
 # /api/traffic
+
 
 class TestTrafficEndpoint:
     @patch("gitlytics.api.cache.validate_token", return_value=(True, "user"))
@@ -159,7 +190,9 @@ class TestTrafficEndpoint:
     @patch("gitlytics.api.cache.validate_token", return_value=(True, "user"))
     @patch("gitlytics.api.cache._validate_token_cached", return_value=(True, "user"))
     @patch("gitlytics.api.cache.fetch_traffic_data", return_value=_make_tidy_df())
-    def test_repo_objects_have_required_fields(self, mock_fetch, mock_cached, mock_validate):
+    def test_repo_objects_have_required_fields(
+        self, mock_fetch, mock_cached, mock_validate
+    ):
         # Each repo object must include the fields the React dashboard depends on
         response = client.post("/api/traffic", json={"token": "valid_token"})
         repos = response.json()
@@ -178,6 +211,7 @@ class TestTrafficEndpoint:
         # Missing token must return 401
         with patch.dict("os.environ", {}, clear=False):
             import os
+
             os.environ.pop("GITLYTICS_TOKEN", None)
             response = client.post("/api/traffic", json={"token": ""})
         assert response.status_code == 401
@@ -185,7 +219,9 @@ class TestTrafficEndpoint:
     @patch("gitlytics.api.cache.validate_token", return_value=(True, "user"))
     @patch("gitlytics.api.cache._validate_token_cached", return_value=(True, "user"))
     @patch("gitlytics.api.cache.fetch_traffic_data", return_value=pd.DataFrame())
-    def test_empty_data_returns_empty_list(self, mock_fetch, mock_cached, mock_validate):
+    def test_empty_data_returns_empty_list(
+        self, mock_fetch, mock_cached, mock_validate
+    ):
         # If the user has no repos, the endpoint must return [] not crash
         response = client.post("/api/traffic", json={"token": "valid_token"})
         assert response.status_code == 200
@@ -198,53 +234,70 @@ class TestTrafficEndpoint:
     @patch("gitlytics.api.routes.Path.glob")
     @patch("gitlytics.api.routes.Path.exists", return_value=True)
     def test_merges_csv_and_live_traffic(
-        self, mock_exists, mock_glob, mock_read_csv, mock_fetch, mock_cached, mock_validate
+        self,
+        mock_exists,
+        mock_glob,
+        mock_read_csv,
+        mock_fetch,
+        mock_cached,
+        mock_validate,
     ):
         from pathlib import Path
-        csv_df = pd.DataFrame([{
-            "date": "2026-06-01",
-            "repository": "user/repo",
-            "is_private": False,
-            "views": 10,
-            "unique_visitors": 4,
-            "clones": 5,
-            "unique_cloners": 2,
-            "stars": 20,
-            "forks": 3,
-            "top_referrer": "github.com",
-            "top_referrer_views": 5,
-            "top_referrer_uniques": 2,
-            "top_path": "/README.md",
-            "top_path_views": 4,
-            "top_path_uniques": 1,
-            "_raw_referrers": "[]",
-            "_raw_paths": "[]",
-        }])
-        live_df = pd.DataFrame([{
-            "date": "2026-06-14",
-            "repository": "user/repo",
-            "is_private": False,
-            "views": 15,
-            "unique_visitors": 6,
-            "clones": 8,
-            "unique_cloners": 4,
-            "stars": 20,
-            "forks": 3,
-            "top_referrer": "github.com",
-            "top_referrer_views": 6,
-            "top_referrer_uniques": 3,
-            "top_path": "/README.md",
-            "top_path_views": 5,
-            "top_path_uniques": 2,
-            "_raw_referrers": "[]",
-            "_raw_paths": "[]",
-        }])
+
+        csv_df = pd.DataFrame(
+            [
+                {
+                    "date": "2026-06-01",
+                    "repository": "user/repo",
+                    "is_private": False,
+                    "views": 10,
+                    "unique_visitors": 4,
+                    "clones": 5,
+                    "unique_cloners": 2,
+                    "stars": 20,
+                    "forks": 3,
+                    "top_referrer": "github.com",
+                    "top_referrer_views": 5,
+                    "top_referrer_uniques": 2,
+                    "top_path": "/README.md",
+                    "top_path_views": 4,
+                    "top_path_uniques": 1,
+                    "_raw_referrers": "[]",
+                    "_raw_paths": "[]",
+                }
+            ]
+        )
+        live_df = pd.DataFrame(
+            [
+                {
+                    "date": "2026-06-14",
+                    "repository": "user/repo",
+                    "is_private": False,
+                    "views": 15,
+                    "unique_visitors": 6,
+                    "clones": 8,
+                    "unique_cloners": 4,
+                    "stars": 20,
+                    "forks": 3,
+                    "top_referrer": "github.com",
+                    "top_referrer_views": 6,
+                    "top_referrer_uniques": 3,
+                    "top_path": "/README.md",
+                    "top_path_views": 5,
+                    "top_path_uniques": 2,
+                    "_raw_referrers": "[]",
+                    "_raw_paths": "[]",
+                }
+            ]
+        )
 
         mock_glob.return_value = [Path("traffic_2026-06.csv")]
         mock_read_csv.return_value = csv_df
         mock_fetch.return_value = live_df
 
-        with patch.dict("os.environ", {"GITLYTICS_DATA_DIR": "fake_data_dir"}, clear=False):
+        with patch.dict(
+            "os.environ", {"GITLYTICS_DATA_DIR": "fake_data_dir"}, clear=False
+        ):
             response = client.post("/api/traffic", json={"token": "valid_token"})
 
         assert response.status_code == 200
@@ -259,6 +312,7 @@ class TestTrafficEndpoint:
 
 # /api/upload-csv
 
+
 class TestUploadCsvEndpoint:
     def _upload(self, headers, row):
         """Helper: uploads a CSV and returns the Response."""
@@ -272,13 +326,44 @@ class TestUploadCsvEndpoint:
     def test_valid_native_csv_returns_200(self):
         # Our own CSV format should be accepted and return a list of repo objects
         response = self._upload(
-            ["date", "repository", "is_private", "views", "unique_visitors",
-             "clones", "unique_cloners", "stars", "forks",
-             "top_referrer", "top_referrer_views", "top_referrer_uniques",
-             "top_path", "top_path_views", "top_path_uniques",
-             "_raw_referrers", "_raw_paths"],
-            ["2025-06-14", "user/repo", "False", 10, 4, 5, 2, 20, 3,
-             "github.com", 5, 2, "/README.md", 4, 1, "[]", "[]"]
+            [
+                "date",
+                "repository",
+                "is_private",
+                "views",
+                "unique_visitors",
+                "clones",
+                "unique_cloners",
+                "stars",
+                "forks",
+                "top_referrer",
+                "top_referrer_views",
+                "top_referrer_uniques",
+                "top_path",
+                "top_path_views",
+                "top_path_uniques",
+                "_raw_referrers",
+                "_raw_paths",
+            ],
+            [
+                "2025-06-14",
+                "user/repo",
+                "False",
+                10,
+                4,
+                5,
+                2,
+                20,
+                3,
+                "github.com",
+                5,
+                2,
+                "/README.md",
+                4,
+                1,
+                "[]",
+                "[]",
+            ],
         )
         assert response.status_code == 200
         assert isinstance(response.json(), list)
@@ -286,31 +371,28 @@ class TestUploadCsvEndpoint:
     def test_minimal_repository_column_accepted(self):
         # A minimal CSV with repository, date, and views is the smallest valid upload
         response = self._upload(
-            ["repository", "date", "views"],
-            ["user/repo", "2025-06-14", 42]
+            ["repository", "date", "views"], ["user/repo", "2025-06-14", 42]
         )
         assert response.status_code == 200
 
     def test_invalid_csv_missing_repository_returns_400(self):
         # A CSV with no recognisable repository column must return 400 with a clear error
-        response = self._upload(
-            ["some_random_column", "data"],
-            ["value1", "value2"]
-        )
+        response = self._upload(["some_random_column", "data"], ["value1", "value2"])
         assert response.status_code == 400
         assert "detail" in response.json()
 
     def test_repo_name_column_renamed_automatically(self):
         # Old 'repo_name' column from legacy exports should be accepted after renaming
         response = self._upload(
-            ["repo_name", "date", "views"],
-            ["user/legacy_repo", "2025-06-14", 10]
+            ["repo_name", "date", "views"], ["user/legacy_repo", "2025-06-14", 10]
         )
         assert response.status_code == 200
 
     def test_upload_returns_list_of_repo_objects(self):
         # The endpoint must always return a list (may be empty but not null)
-        response = self._upload(["repository", "date", "views"], ["user/repo", "2025-06-14", 10])
+        response = self._upload(
+            ["repository", "date", "views"], ["user/repo", "2025-06-14", 10]
+        )
         assert isinstance(response.json(), list)
 
     def test_upload_is_preview_only_and_never_persists(self, tmp_path):
@@ -318,16 +400,18 @@ class TestUploadCsvEndpoint:
         # upload a permanent part of every future /api/traffic response.
         data_dir = tmp_path / "data"
         data_dir.mkdir()
-        with patch.dict("os.environ", {"GITLYTICS_DATA_DIR": str(data_dir)}, clear=False):
+        with patch.dict(
+            "os.environ", {"GITLYTICS_DATA_DIR": str(data_dir)}, clear=False
+        ):
             response = self._upload(
-                ["repository", "date", "views"],
-                ["user/repo", "2025-06-14", 42]
+                ["repository", "date", "views"], ["user/repo", "2025-06-14", 42]
             )
         assert response.status_code == 200
         assert list(data_dir.iterdir()) == []
 
 
 # Root and SPA fallback
+
 
 class TestRootEndpoint:
     def test_root_returns_200_or_503(self):
@@ -380,13 +464,18 @@ class TestRootEndpoint:
 
 # CORS allowlist
 
+
 class TestCorsHeaders:
     def test_authorization_header_is_allowed(self):
         # Bug fix: 'Authorization' must be in CORS allow_headers for the dashboard
         # to send the token via header in cross-origin deployments.
-        from gitlytics.api import app as api_app
         from fastapi.middleware.cors import CORSMiddleware
-        cors_mw = next((m for m in api_app.user_middleware if m.cls is CORSMiddleware), None)
+
+        from gitlytics.api import app as api_app
+
+        cors_mw = next(
+            (m for m in api_app.user_middleware if m.cls is CORSMiddleware), None
+        )
         assert cors_mw is not None, "CORS middleware is not registered"
         kwargs = cors_mw.kwargs
         assert "Authorization" in kwargs.get("allow_headers", []), (
@@ -398,10 +487,12 @@ class TestCorsHeaders:
 
 # /api/upload-csv oversize guard
 
+
 class TestUploadSizeLimit:
     def test_oversize_upload_returns_413(self, tmp_path):
         # Bug fix: an upload larger than 5 MB must return 413, not consume memory
         from gitlytics.api import _MAX_UPLOAD_BYTES
+
         # Build a body that's just over the limit (1 byte extra)
         body = b"x" * (_MAX_UPLOAD_BYTES + 1)
         # Set GITLYTICS_DATA_DIR so the streaming path (with size check) runs
@@ -420,10 +511,12 @@ class TestUploadSizeLimit:
         # not set (the default/common configuration). The original fix only enforced
         # the limit inside the `if data_dir:` branch.
         from gitlytics.api import _MAX_UPLOAD_BYTES
+
         body = b"x" * (_MAX_UPLOAD_BYTES + 1)
         # Ensure no data dir is set so the unbounded read path is exercised
         with patch.dict("os.environ", {}, clear=False):
             import os
+
             os.environ.pop("GITLYTICS_DATA_DIR", None)
             os.environ.pop("GITLYTICS_TOKEN", None)
             response = client.post(
@@ -441,22 +534,30 @@ class TestUploadSizeLimit:
             files={"file": ("ok.csv", body, "text/csv")},
             headers={"origin": "http://testserver"},
         )
-        assert response.status_code in (200, 400)  # 400 only if column recognition fails
+        assert response.status_code in (
+            200,
+            400,
+        )  # 400 only if column recognition fails
 
 
 # token delegation and cross-origin uploads
 
+
 class TestLibraryApiHardening:
     def test_env_token_fallback_is_disabled_by_default(self):
         import os
+
         from gitlytics.api import _get_token
+
         with patch.dict(os.environ, {"GITLYTICS_TOKEN": "env_tok"}, clear=False):
             os.environ.pop("GITLYTICS_ALLOW_ENV_TOKEN", None)
             assert _get_token("") is None
 
     def test_env_token_fallback_requires_opt_in(self):
         import os
+
         from gitlytics.api import _get_token
+
         with patch.dict(
             os.environ,
             {"GITLYTICS_TOKEN": "env_tok", "GITLYTICS_ALLOW_ENV_TOKEN": "1"},
@@ -466,6 +567,7 @@ class TestLibraryApiHardening:
 
     def test_explicit_request_token_always_wins(self):
         from gitlytics.api import _get_token
+
         assert _get_token(" request_tok ") == "request_tok"
 
     def test_star_history_requires_bearer_token(self):
@@ -482,6 +584,7 @@ class TestLibraryApiHardening:
     def test_cross_origin_upload_is_rejected(self):
         body = b"date,repository,views\n2025-06-14,u/r,10\n"
         import os
+
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("GITLYTICS_UPLOAD_KEY", None)
             response = client.post(
@@ -494,7 +597,10 @@ class TestLibraryApiHardening:
     def test_upload_key_allows_non_browser_client(self):
         body = b"date,repository,views\n2025-06-14,u/r,10\n"
         import os
-        with patch.dict(os.environ, {"GITLYTICS_UPLOAD_KEY": "secret-key"}, clear=False):
+
+        with patch.dict(
+            os.environ, {"GITLYTICS_UPLOAD_KEY": "secret-key"}, clear=False
+        ):
             response = client.post(
                 "/api/upload-csv",
                 files={"file": ("test.csv", body, "text/csv")},

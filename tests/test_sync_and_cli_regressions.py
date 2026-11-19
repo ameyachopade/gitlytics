@@ -1,4 +1,5 @@
 """Offline tests for 15-day traffic padding, referrer fallback, and username bearer auth."""
+
 import json
 from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
@@ -8,14 +9,15 @@ import pandas as pd
 import pytest
 from fastapi.testclient import TestClient
 
-from gitlytics.api import app, _fetch_username_data
-from gitlytics.core import pad_traffic_data, build_tidy_rows, fetch_traffic_data
+from gitlytics.api import _fetch_username_data, app
+from gitlytics.core import build_tidy_rows, fetch_traffic_data, pad_traffic_data
 from gitlytics.process import build_react_payload
 
 client = TestClient(app)
 
 
 # 15-day rolling window retaining oldest day
+
 
 def test_lib3_01_pad_traffic_data_retains_15_days_including_oldest():
     """pad_traffic_data must preserve day 14 (14 days ago, total 15 days)."""
@@ -25,8 +27,20 @@ def test_lib3_01_pad_traffic_data_retains_15_days_including_oldest():
     clones_items = []
     for days_ago in range(14, -1, -1):
         dt = (now_utc - timedelta(days=days_ago)).strftime("%Y-%m-%d")
-        views_items.append({"timestamp": f"{dt}T00:00:00Z", "count": 10 + days_ago, "uniques": 5 + days_ago})
-        clones_items.append({"timestamp": f"{dt}T00:00:00Z", "count": 20 + days_ago, "uniques": 8 + days_ago})
+        views_items.append(
+            {
+                "timestamp": f"{dt}T00:00:00Z",
+                "count": 10 + days_ago,
+                "uniques": 5 + days_ago,
+            }
+        )
+        clones_items.append(
+            {
+                "timestamp": f"{dt}T00:00:00Z",
+                "count": 20 + days_ago,
+                "uniques": 8 + days_ago,
+            }
+        )
 
     traffic = {
         "views": {"views": views_items},
@@ -62,7 +76,9 @@ def test_lib3_01_pad_traffic_data_empty_traffic_yields_15_days():
 
     # Dates must be 15 strictly consecutive days ending on today (UTC)
     now_utc = datetime.now(timezone.utc)
-    expected_dates = [(now_utc - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(14, -1, -1)]
+    expected_dates = [
+        (now_utc - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(14, -1, -1)
+    ]
     actual_dates = [r["date"] for r in padded]
     assert actual_dates == expected_dates
 
@@ -75,7 +91,12 @@ def test_lib3_01_build_tidy_rows_produces_15_rows():
         "stargazers_count": 42,
         "forks_count": 7,
     }
-    traffic = {"views": {"views": []}, "clones": {"clones": []}, "referrers": [], "paths": []}
+    traffic = {
+        "views": {"views": []},
+        "clones": {"clones": []},
+        "referrers": [],
+        "paths": [],
+    }
     rows = build_tidy_rows(repo, traffic)
     assert len(rows) == 15
     assert all(r["repository"] == "owner/repo" for r in rows)
@@ -83,42 +104,49 @@ def test_lib3_01_build_tidy_rows_produces_15_rows():
 
 # .dropna().iloc[-1] for referrers and paths
 
+
 def test_lib3_03_preserves_historical_referrers_when_latest_record_is_nan():
     """When latest daily record has NaN referrers, historical referrers must be retained."""
-    historical_referrers = json.dumps([
-        {"referrer": "github.com", "count": 100, "uniques": 45},
-        {"referrer": "google.com", "count": 50, "uniques": 20},
-    ])
-    historical_paths = json.dumps([
-        {"path": "/docs", "title": "Documentation", "count": 75, "uniques": 30},
-    ])
+    historical_referrers = json.dumps(
+        [
+            {"referrer": "github.com", "count": 100, "uniques": 45},
+            {"referrer": "google.com", "count": 50, "uniques": 20},
+        ]
+    )
+    historical_paths = json.dumps(
+        [
+            {"path": "/docs", "title": "Documentation", "count": 75, "uniques": 30},
+        ]
+    )
 
-    df = pd.DataFrame([
-        {
-            "repository": "owner/repo",
-            "date": "2026-11-01",
-            "views": 10,
-            "unique_visitors": 5,
-            "clones": 2,
-            "unique_cloners": 1,
-            "_raw_referrers": historical_referrers,
-            "_raw_paths": historical_paths,
-            "stars": 10,
-            "forks": 2,
-        },
-        {
-            "repository": "owner/repo",
-            "date": "2026-11-02",
-            "views": 8,
-            "unique_visitors": 4,
-            "clones": 1,
-            "unique_cloners": 1,
-            "_raw_referrers": np.nan,  # Latest day has NaN
-            "_raw_paths": None,        # Latest day has None
-            "stars": 10,
-            "forks": 2,
-        },
-    ])
+    df = pd.DataFrame(
+        [
+            {
+                "repository": "owner/repo",
+                "date": "2026-11-01",
+                "views": 10,
+                "unique_visitors": 5,
+                "clones": 2,
+                "unique_cloners": 1,
+                "_raw_referrers": historical_referrers,
+                "_raw_paths": historical_paths,
+                "stars": 10,
+                "forks": 2,
+            },
+            {
+                "repository": "owner/repo",
+                "date": "2026-11-02",
+                "views": 8,
+                "unique_visitors": 4,
+                "clones": 1,
+                "unique_cloners": 1,
+                "_raw_referrers": np.nan,  # Latest day has NaN
+                "_raw_paths": None,  # Latest day has None
+                "stars": 10,
+                "forks": 2,
+            },
+        ]
+    )
 
     repos = build_react_payload(df)
     assert len(repos) == 1
@@ -136,28 +164,30 @@ def test_lib3_03_preserves_historical_referrers_when_latest_record_is_nan():
 
 def test_lib3_03_all_nan_referrers_and_paths_safely_defaults_to_empty_lists():
     """When all rows contain NaN or None for referrers/paths, safely return empty lists."""
-    df = pd.DataFrame([
-        {
-            "repository": "owner/repo",
-            "date": "2026-11-01",
-            "views": 5,
-            "unique_visitors": 2,
-            "clones": 1,
-            "unique_cloners": 1,
-            "_raw_referrers": np.nan,
-            "_raw_paths": None,
-        },
-        {
-            "repository": "owner/repo",
-            "date": "2026-11-02",
-            "views": 3,
-            "unique_visitors": 1,
-            "clones": 0,
-            "unique_cloners": 0,
-            "_raw_referrers": None,
-            "_raw_paths": np.nan,
-        },
-    ])
+    df = pd.DataFrame(
+        [
+            {
+                "repository": "owner/repo",
+                "date": "2026-11-01",
+                "views": 5,
+                "unique_visitors": 2,
+                "clones": 1,
+                "unique_cloners": 1,
+                "_raw_referrers": np.nan,
+                "_raw_paths": None,
+            },
+            {
+                "repository": "owner/repo",
+                "date": "2026-11-02",
+                "views": 3,
+                "unique_visitors": 1,
+                "clones": 0,
+                "unique_cloners": 0,
+                "_raw_referrers": None,
+                "_raw_paths": np.nan,
+            },
+        ]
+    )
 
     repos = build_react_payload(df)
     repo_data = repos[0]
@@ -167,16 +197,18 @@ def test_lib3_03_all_nan_referrers_and_paths_safely_defaults_to_empty_lists():
 
 def test_lib3_03_missing_referrer_and_path_columns_handled_gracefully():
     """Missing _raw_referrers / _raw_paths columns safely default without KeyError."""
-    df = pd.DataFrame([
-        {
-            "repository": "owner/repo",
-            "date": "2026-11-01",
-            "views": 5,
-            "unique_visitors": 2,
-            "clones": 1,
-            "unique_cloners": 1,
-        },
-    ])
+    df = pd.DataFrame(
+        [
+            {
+                "repository": "owner/repo",
+                "date": "2026-11-01",
+                "views": 5,
+                "unique_visitors": 2,
+                "clones": 1,
+                "unique_cloners": 1,
+            },
+        ]
+    )
 
     repos = build_react_payload(df)
     repo_data = repos[0]
@@ -186,8 +218,15 @@ def test_lib3_03_missing_referrer_and_path_columns_handled_gracefully():
 
 # Username endpoint Authorization token forwarding
 
-@patch("gitlytics.api.routes.get_public_repos", return_value=[{"name": "repo1", "stargazers_count": 10}])
-@patch("gitlytics.api.routes.get_public_user", return_value={"login": "octocat", "name": "The Octocat", "avatar_url": ""})
+
+@patch(
+    "gitlytics.api.routes.get_public_repos",
+    return_value=[{"name": "repo1", "stargazers_count": 10}],
+)
+@patch(
+    "gitlytics.api.routes.get_public_user",
+    return_value={"login": "octocat", "name": "The Octocat", "avatar_url": ""},
+)
 def test_lib3_04_get_username_forwards_bearer_token(mock_user, mock_repos):
     """GET /api/username/{username} forwards Bearer token from Authorization header."""
     headers = {"Authorization": "Bearer ghp_secret_test_token_123"}
@@ -199,8 +238,13 @@ def test_lib3_04_get_username_forwards_bearer_token(mock_user, mock_repos):
 
 
 @patch("gitlytics.api.routes.get_public_repos", return_value=[])
-@patch("gitlytics.api.routes.get_public_user", return_value={"login": "octocat", "name": "The Octocat", "avatar_url": ""})
-def test_lib3_04_get_username_without_token_calls_unauthenticated(mock_user, mock_repos):
+@patch(
+    "gitlytics.api.routes.get_public_user",
+    return_value={"login": "octocat", "name": "The Octocat", "avatar_url": ""},
+)
+def test_lib3_04_get_username_without_token_calls_unauthenticated(
+    mock_user, mock_repos
+):
     """GET /api/username/{username} without Authorization header calls without token."""
     resp = client.get("/api/username/octocat")
     assert resp.status_code == 200
@@ -210,7 +254,10 @@ def test_lib3_04_get_username_without_token_calls_unauthenticated(mock_user, moc
 
 
 @patch("gitlytics.api.routes.get_public_repos", return_value=[])
-@patch("gitlytics.api.routes.get_public_user", return_value={"login": "octocat", "name": "The Octocat", "avatar_url": ""})
+@patch(
+    "gitlytics.api.routes.get_public_user",
+    return_value={"login": "octocat", "name": "The Octocat", "avatar_url": ""},
+)
 def test_lib3_04_post_username_forwards_bearer_header(mock_user, mock_repos):
     """POST /api/username forwards Bearer token from Authorization header."""
     headers = {"Authorization": "Bearer ghp_post_header_token"}
@@ -222,10 +269,15 @@ def test_lib3_04_post_username_forwards_bearer_header(mock_user, mock_repos):
 
 
 @patch("gitlytics.api.routes.get_public_repos", return_value=[])
-@patch("gitlytics.api.routes.get_public_user", return_value={"login": "octocat", "name": "The Octocat", "avatar_url": ""})
+@patch(
+    "gitlytics.api.routes.get_public_user",
+    return_value={"login": "octocat", "name": "The Octocat", "avatar_url": ""},
+)
 def test_lib3_04_post_username_forwards_body_token(mock_user, mock_repos):
     """POST /api/username forwards token provided in JSON request body."""
-    resp = client.post("/api/username", json={"username": "octocat", "token": "ghp_body_token_456"})
+    resp = client.post(
+        "/api/username", json={"username": "octocat", "token": "ghp_body_token_456"}
+    )
     assert resp.status_code == 200
 
     mock_user.assert_called_once_with("octocat", token="ghp_body_token_456")
@@ -233,7 +285,10 @@ def test_lib3_04_post_username_forwards_body_token(mock_user, mock_repos):
 
 
 @patch("gitlytics.api.routes.get_public_repos", return_value=[])
-@patch("gitlytics.api.routes.get_public_user", return_value={"login": "octocat", "name": "The Octocat", "avatar_url": ""})
+@patch(
+    "gitlytics.api.routes.get_public_user",
+    return_value={"login": "octocat", "name": "The Octocat", "avatar_url": ""},
+)
 def test_lib3_04_direct_fetch_username_data_forwards_token(mock_user, mock_repos):
     """Direct call to _fetch_username_data with token passes token to core functions."""
     result = _fetch_username_data("octocat", token="ghp_direct_call_token")

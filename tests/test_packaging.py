@@ -1,4 +1,5 @@
 """Packaging tests verifying Python version floor, classifiers, README, and CI matrix."""
+
 import tomllib
 import warnings
 from pathlib import Path
@@ -25,7 +26,7 @@ def test_readme_no_longer_claims_python_39():
     readme = (PACKAGE_ROOT / "README.md").read_text(encoding="utf-8")
     assert "Python-3.11+" in readme
     assert "Python-3.9+" not in readme
-    assert "requires-python = \">=3.9\"" not in readme
+    assert 'requires-python = ">=3.9"' not in readme
 
 
 def test_ci_matrix_covers_every_supported_python_version():

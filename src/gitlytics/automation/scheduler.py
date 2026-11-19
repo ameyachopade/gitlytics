@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """One-shot sync execution and continuous cron daemon loop."""
+
 from __future__ import annotations
 
 import logging
@@ -17,6 +18,7 @@ from gitlytics.exceptions import (
     TokenExpiredError,
 )
 from gitlytics.io.csv import _parse_date_column
+
 from .storage import _write_df_to_csv, export_json_database, get_csv_path
 
 logger = logging.getLogger(__name__)
@@ -58,7 +60,9 @@ def run_sync_cycle(
         for month_key, group in df.groupby("_month"):
             group = group.drop(columns=["_month"])
             try:
-                ref_dt = datetime.strptime(month_key, "%Y-%m").replace(tzinfo=timezone.utc)
+                ref_dt = datetime.strptime(month_key, "%Y-%m").replace(
+                    tzinfo=timezone.utc
+                )
             except ValueError:
                 ref_dt = datetime.now(timezone.utc)
             csv_path = get_csv_path(data_dir, output_mode, ref_dt)
@@ -90,7 +94,9 @@ def run_sync_cycle(
     else:
         csv_path = get_csv_path(data_dir, output_mode)
         total_new = _write_df_to_csv(df, csv_path)
-        logger.info(f"Successfully processed traffic data. Added {total_new} new daily records to {csv_path}")
+        logger.info(
+            f"Successfully processed traffic data. Added {total_new} new daily records to {csv_path}"
+        )
 
     if export_json:
         export_json_database(data_dir, export_json, export_public_only)
@@ -124,8 +130,14 @@ def run_sync(
     """Run one sync cycle or stay alive on a cron schedule until interrupted."""
     if not schedule_cron:
         rows = run_sync_cycle(
-            token, repo_names, data_dir, output_mode, export_json,
-            export_public_only, metrics, public_only=public_only,
+            token,
+            repo_names,
+            data_dir,
+            output_mode,
+            export_json,
+            export_public_only,
+            metrics,
+            public_only=public_only,
         )
         if rows == 0:
             raise NoTrafficDataError(
@@ -148,7 +160,9 @@ def run_sync(
             next_run = next_run.replace(tzinfo=timezone.utc)
 
         sleep_secs = max(1.0, (next_run - now_utc).total_seconds())
-        logger.info(f"Scheduled next sync for {next_run.strftime('%Y-%m-%d %H:%M:%S UTC')}. Sleeping {sleep_secs:.0f}s...")
+        logger.info(
+            f"Scheduled next sync for {next_run.strftime('%Y-%m-%d %H:%M:%S UTC')}. Sleeping {sleep_secs:.0f}s..."
+        )
         _interruptible_sleep(sleep_secs)
 
         try:
@@ -157,7 +171,9 @@ def run_sync(
             if not is_valid:
                 msg_lower = msg.lower()
                 if "rate limit" in msg_lower or "429" in msg_lower:
-                    logger.warning(f"GitHub rate limit reached: {msg}. Retrying next cycle.")
+                    logger.warning(
+                        f"GitHub rate limit reached: {msg}. Retrying next cycle."
+                    )
                     continue
                 is_auth_failure = (
                     "401" in msg
@@ -176,12 +192,20 @@ def run_sync(
                     raise TokenExpiredError(
                         "GitHub token is expired, revoked, or lacks the required permissions"
                     )
-                logger.warning(f"Network drop or temporary error: {msg}. Retrying next cycle.")
+                logger.warning(
+                    f"Network drop or temporary error: {msg}. Retrying next cycle."
+                )
                 continue
 
             rows = run_sync_cycle(
-                token, repo_names, data_dir, output_mode, export_json,
-                export_public_only, metrics, public_only=public_only,
+                token,
+                repo_names,
+                data_dir,
+                output_mode,
+                export_json,
+                export_public_only,
+                metrics,
+                public_only=public_only,
             )
             if rows == 0:
                 logger.error(
@@ -200,4 +224,6 @@ def run_sync(
             logger.info("Daemon interrupted by user. Exiting.")
             raise
         except Exception as exc:
-            logger.error(f"Daemon encountered unexpected error: {exc}. Recovering for next cycle.")
+            logger.error(
+                f"Daemon encountered unexpected error: {exc}. Recovering for next cycle."
+            )

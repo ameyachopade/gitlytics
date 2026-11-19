@@ -1,4 +1,5 @@
 """Offline tests for CSV normalization, CLI stderr/exit behavior, caching, licensing, and CSP."""
+
 from __future__ import annotations
 
 import io
@@ -31,6 +32,7 @@ def _resp(status: int, *, body=None, headers=None, text: str = ""):
 
 # Legacy / title-case CSV headers must not 500 the dashboard
 
+
 class TestLib02LegacyCsvHeaders:
     def test_read_csv_cached_normalises_title_case_headers(self, tmp_path):
         from gitlytics.api import _read_csv_cached
@@ -59,6 +61,7 @@ class TestLib02LegacyCsvHeaders:
     def test_traffic_endpoint_survives_a_title_case_csv(self, tmp_path):
         """A legacy CSV must not take the whole dashboard down with a 500."""
         from fastapi.testclient import TestClient
+
         from gitlytics import api
 
         (tmp_path / "traffic_2026-01.csv").write_text(
@@ -67,10 +70,17 @@ class TestLib02LegacyCsvHeaders:
             "2026-01-02,owner/repo,False,12\n",
             encoding="utf-8",
         )
-        with patch.dict(os.environ, {"GITLYTICS_DATA_DIR": str(tmp_path)}, clear=False), \
-             patch("gitlytics.api.cache._validate_token_cached", return_value=(True, "owner")), \
-             patch("gitlytics.api.cache.fetch_traffic_data", return_value=pd.DataFrame()), \
-             patch("gitlytics.api.cache.fetch_deep_stats_for_top", return_value={}):
+        with (
+            patch.dict(os.environ, {"GITLYTICS_DATA_DIR": str(tmp_path)}, clear=False),
+            patch(
+                "gitlytics.api.cache._validate_token_cached",
+                return_value=(True, "owner"),
+            ),
+            patch(
+                "gitlytics.api.cache.fetch_traffic_data", return_value=pd.DataFrame()
+            ),
+            patch("gitlytics.api.cache.fetch_deep_stats_for_top", return_value={}),
+        ):
             response = TestClient(api.app).post("/api/traffic", json={"token": "t"})
 
         assert response.status_code == 200
@@ -89,15 +99,23 @@ class TestLib02LegacyCsvHeaders:
     def test_csv_without_required_columns_is_skipped_not_fatal(self, tmp_path):
         """A junk CSV in the data dir is skipped with a warning, not a 500."""
         from fastapi.testclient import TestClient
+
         from gitlytics import api
 
         (tmp_path / "traffic_2026-01.csv").write_text(
             "foo,bar\n1,2\n", encoding="utf-8"
         )
-        with patch.dict(os.environ, {"GITLYTICS_DATA_DIR": str(tmp_path)}, clear=False), \
-             patch("gitlytics.api.cache._validate_token_cached", return_value=(True, "owner")), \
-             patch("gitlytics.api.cache.fetch_traffic_data", return_value=pd.DataFrame()), \
-             patch("gitlytics.api.cache.fetch_deep_stats_for_top", return_value={}):
+        with (
+            patch.dict(os.environ, {"GITLYTICS_DATA_DIR": str(tmp_path)}, clear=False),
+            patch(
+                "gitlytics.api.cache._validate_token_cached",
+                return_value=(True, "owner"),
+            ),
+            patch(
+                "gitlytics.api.cache.fetch_traffic_data", return_value=pd.DataFrame()
+            ),
+            patch("gitlytics.api.cache.fetch_deep_stats_for_top", return_value={}),
+        ):
             response = TestClient(api.app).post("/api/traffic", json={"token": "t"})
 
         assert response.status_code == 200
@@ -105,6 +123,7 @@ class TestLib02LegacyCsvHeaders:
 
 
 # A GitHub 5xx must not produce a raw traceback
+
 
 class TestLib03GitHubApiError:
     def test_get_single_repo_raises_github_api_error_on_5xx(self):
@@ -124,7 +143,9 @@ class TestLib03GitHubApiError:
 
         with patch(
             "gitlytics.cli.commands.fetch_traffic",
-            side_effect=GitHubAPIError("Failed to fetch repository 'owner/repo' (HTTP 500)."),
+            side_effect=GitHubAPIError(
+                "Failed to fetch repository 'owner/repo' (HTTP 500)."
+            ),
         ):
             with pytest.raises(SystemExit) as exc:
                 cli.main(["fetch", "--token", "t", "--repo-name", "owner/repo"])
@@ -137,7 +158,10 @@ class TestLib03GitHubApiError:
     def test_cli_sync_maps_github_api_error_to_exit_1(self, capsys):
         from gitlytics import cli
 
-        with patch("gitlytics.cli.commands.sync", side_effect=GitHubAPIError("upstream exploded")):
+        with patch(
+            "gitlytics.cli.commands.sync",
+            side_effect=GitHubAPIError("upstream exploded"),
+        ):
             with pytest.raises(SystemExit) as exc:
                 cli.main(["sync", "--token", "t"])
         assert exc.value.code == 1
@@ -152,11 +176,15 @@ class TestLib03GitHubApiError:
 
 # `gitlytics sync` must not report success on zero rows
 
+
 class TestLib04SyncZeroRows:
     def test_run_sync_cycle_reports_zero_rows(self, tmp_path):
         from gitlytics.automation import run_sync_cycle
 
-        with patch("gitlytics.automation.scheduler.fetch_traffic_data", return_value=pd.DataFrame()):
+        with patch(
+            "gitlytics.automation.scheduler.fetch_traffic_data",
+            return_value=pd.DataFrame(),
+        ):
             rows = run_sync_cycle("tok", data_dir=str(tmp_path))
         assert rows == 0
         assert list(tmp_path.glob("traffic_*.csv")) == []
@@ -164,11 +192,25 @@ class TestLib04SyncZeroRows:
     def test_run_sync_cycle_reports_the_row_count(self, tmp_path):
         from gitlytics.automation import run_sync_cycle
 
-        frame = pd.DataFrame([
-            {"date": "2026-01-01", "repository": "owner/repo", "is_private": False, "views": 5},
-            {"date": "2026-01-02", "repository": "owner/repo", "is_private": False, "views": 7},
-        ])
-        with patch("gitlytics.automation.scheduler.fetch_traffic_data", return_value=frame):
+        frame = pd.DataFrame(
+            [
+                {
+                    "date": "2026-01-01",
+                    "repository": "owner/repo",
+                    "is_private": False,
+                    "views": 5,
+                },
+                {
+                    "date": "2026-01-02",
+                    "repository": "owner/repo",
+                    "is_private": False,
+                    "views": 7,
+                },
+            ]
+        )
+        with patch(
+            "gitlytics.automation.scheduler.fetch_traffic_data", return_value=frame
+        ):
             rows = run_sync_cycle("tok", data_dir=str(tmp_path))
         assert rows == 2
 
@@ -199,7 +241,10 @@ class TestLib04SyncZeroRows:
         """The library-level sync must fail loudly, not return quietly."""
         from gitlytics.automation import NoTrafficDataError, run_sync
 
-        with patch("gitlytics.automation.scheduler.fetch_traffic_data", return_value=pd.DataFrame()):
+        with patch(
+            "gitlytics.automation.scheduler.fetch_traffic_data",
+            return_value=pd.DataFrame(),
+        ):
             with pytest.raises(NoTrafficDataError):
                 run_sync("tok", data_dir=str(tmp_path))
 
@@ -209,7 +254,9 @@ class TestLib04SyncZeroRows:
 
         with patch(
             "gitlytics.cli.commands.sync",
-            side_effect=NoTrafficDataError("No traffic data was returned by GitHub - nothing was synced."),
+            side_effect=NoTrafficDataError(
+                "No traffic data was returned by GitHub - nothing was synced."
+            ),
         ):
             with pytest.raises(SystemExit) as exc:
                 cli.main(["sync", "--token", "t"])
@@ -225,6 +272,7 @@ class TestLib04SyncZeroRows:
 
 
 # The stargazer negative cache must be per-token
+
 
 class TestLib05StargazerCacheIsPerToken:
     @pytest.fixture(autouse=True)
@@ -244,33 +292,44 @@ class TestLib05StargazerCacheIsPerToken:
         assert "ghp_supersecret" not in "".join(key)
 
     def test_anonymous_requests_share_one_key(self):
-        assert core._stargazer_cache_key("o", "r") == core._stargazer_cache_key("o", "r", None)
+        assert core._stargazer_cache_key("o", "r") == core._stargazer_cache_key(
+            "o", "r", None
+        )
 
     def test_one_users_404_does_not_poison_another_user(self):
         """A 404 for token A must not short-circuit token B's real timeline."""
         from gitlytics.core import fetch_star_history
 
         meta = {"stargazers_count": 2, "created_at": "2020-01-01T00:00:00Z"}
-        stargazers_ok = _resp(200, body=[
-            {"starred_at": "2024-01-01T00:00:00Z"},
-            {"starred_at": "2024-02-01T00:00:00Z"},
-        ])
+        stargazers_ok = _resp(
+            200,
+            body=[
+                {"starred_at": "2024-01-01T00:00:00Z"},
+                {"starred_at": "2024-02-01T00:00:00Z"},
+            ],
+        )
         restricted = _resp(404)
 
         # Token A hits the restricted stargazer endpoint.
-        with patch("gitlytics.core.client._safe_get", return_value=(meta, 200)), \
-             patch("gitlytics.core.client._http_get", side_effect=[restricted]):
+        with (
+            patch("gitlytics.core.client._safe_get", return_value=(meta, 200)),
+            patch("gitlytics.core.client._http_get", side_effect=[restricted]),
+        ):
             fetch_star_history("o", "r", "token-a")
         # The approximation carries the repository creation date and today.
-        with patch("gitlytics.core.client._safe_get", return_value=(meta, 200)), \
-             patch("gitlytics.core.client._http_get", return_value=restricted):
+        with (
+            patch("gitlytics.core.client._safe_get", return_value=(meta, 200)),
+            patch("gitlytics.core.client._http_get", return_value=restricted),
+        ):
             points_a = fetch_star_history("o", "r", "token-a")
         assert len(points_a) == 2  # the documented approximation
 
         # Token B is the repository owner: it must get the real timeline with
         # the actual star dates, not the fabricated approximation.
-        with patch("gitlytics.core.client._safe_get", return_value=(meta, 200)), \
-             patch("gitlytics.core.client._http_get", return_value=stargazers_ok):
+        with (
+            patch("gitlytics.core.client._safe_get", return_value=(meta, 200)),
+            patch("gitlytics.core.client._http_get", return_value=stargazers_ok),
+        ):
             points_b = fetch_star_history("o", "r", "token-b")
         dates_b = {p["date"] for p in points_b}
         assert "2024-01-01" in dates_b, (
@@ -286,18 +345,23 @@ class TestLib05StargazerCacheIsPerToken:
         meta = {"stargazers_count": 2, "created_at": "2020-01-01T00:00:00Z"}
         restricted = _resp(404)
 
-        with patch("gitlytics.core.client._safe_get", return_value=(meta, 200)), \
-             patch("gitlytics.core.client._http_get", side_effect=[restricted]):
+        with (
+            patch("gitlytics.core.client._safe_get", return_value=(meta, 200)),
+            patch("gitlytics.core.client._http_get", side_effect=[restricted]),
+        ):
             fetch_star_history("o", "r", "token-a")
 
         # The second call must NOT issue another stargazer request.
-        with patch("gitlytics.core.client._safe_get", return_value=(meta, 200)), \
-             patch("gitlytics.core.client._http_get") as mock_get:
+        with (
+            patch("gitlytics.core.client._safe_get", return_value=(meta, 200)),
+            patch("gitlytics.core.client._http_get") as mock_get,
+        ):
             fetch_star_history("o", "r", "token-a")
         assert mock_get.call_count == 0
 
 
 # The "offline" harness must never hit the network
+
 
 class TestLib06OfflineHarness:
     def test_harness_never_performs_a_live_request(self):
@@ -326,11 +390,14 @@ class TestLib06OfflineHarness:
 
 # Serve_dashboard() must not discard an env token
 
+
 class TestLib07ServeDashboardKeepsEnvToken:
     def test_env_token_is_kept_on_loopback(self, capsys):
         import gitlytics
 
-        with patch.dict(os.environ, {"GITLYTICS_TOKEN": "pre-existing-pat"}, clear=False):
+        with patch.dict(
+            os.environ, {"GITLYTICS_TOKEN": "pre-existing-pat"}, clear=False
+        ):
             os.environ.pop("GITLYTICS_ALLOW_ENV_TOKEN", None)
             seen = {}
 
@@ -391,6 +458,7 @@ class TestLib07ServeDashboardKeepsEnvToken:
 
 # Mixed date formats must not delete whole repositories
 
+
 class TestLib08MixedDateFormats:
     def test_parse_date_column_handles_mixed_formats(self):
         from gitlytics.automation import _parse_date_column
@@ -405,11 +473,25 @@ class TestLib08MixedDateFormats:
         """Every parseable row must survive the monthly bucketing."""
         from gitlytics.automation import run_sync_cycle
 
-        frame = pd.DataFrame([
-            {"date": "2026-11-01", "repository": "owner/repo1", "is_private": False, "views": 10},
-            {"date": "01/02/2026", "repository": "owner/repo2", "is_private": False, "views": 20},
-        ])
-        with patch("gitlytics.automation.scheduler.fetch_traffic_data", return_value=frame):
+        frame = pd.DataFrame(
+            [
+                {
+                    "date": "2026-11-01",
+                    "repository": "owner/repo1",
+                    "is_private": False,
+                    "views": 10,
+                },
+                {
+                    "date": "01/02/2026",
+                    "repository": "owner/repo2",
+                    "is_private": False,
+                    "views": 20,
+                },
+            ]
+        )
+        with patch(
+            "gitlytics.automation.scheduler.fetch_traffic_data", return_value=frame
+        ):
             rows = run_sync_cycle("tok", data_dir=str(tmp_path))
 
         assert rows == 2
@@ -422,11 +504,25 @@ class TestLib08MixedDateFormats:
         """A genuinely malformed date must be an error, not a silent drop."""
         from gitlytics.automation import run_sync_cycle
 
-        frame = pd.DataFrame([
-            {"date": "2026-11-01", "repository": "owner/repo1", "is_private": False, "views": 10},
-            {"date": "not-a-date", "repository": "owner/repo2", "is_private": False, "views": 20},
-        ])
-        with patch("gitlytics.automation.scheduler.fetch_traffic_data", return_value=frame):
+        frame = pd.DataFrame(
+            [
+                {
+                    "date": "2026-11-01",
+                    "repository": "owner/repo1",
+                    "is_private": False,
+                    "views": 10,
+                },
+                {
+                    "date": "not-a-date",
+                    "repository": "owner/repo2",
+                    "is_private": False,
+                    "views": 20,
+                },
+            ]
+        )
+        with patch(
+            "gitlytics.automation.scheduler.fetch_traffic_data", return_value=frame
+        ):
             with pytest.raises(ValueError) as exc:
                 run_sync_cycle("tok", data_dir=str(tmp_path))
 
@@ -439,11 +535,25 @@ class TestLib08MixedDateFormats:
     def test_yearly_mode_also_uses_the_defensive_parser(self, tmp_path):
         from gitlytics.automation import run_sync_cycle
 
-        frame = pd.DataFrame([
-            {"date": "2026-01-01", "repository": "owner/repo1", "is_private": False, "views": 10},
-            {"date": "01/02/2026", "repository": "owner/repo2", "is_private": False, "views": 20},
-        ])
-        with patch("gitlytics.automation.scheduler.fetch_traffic_data", return_value=frame):
+        frame = pd.DataFrame(
+            [
+                {
+                    "date": "2026-01-01",
+                    "repository": "owner/repo1",
+                    "is_private": False,
+                    "views": 10,
+                },
+                {
+                    "date": "01/02/2026",
+                    "repository": "owner/repo2",
+                    "is_private": False,
+                    "views": 20,
+                },
+            ]
+        )
+        with patch(
+            "gitlytics.automation.scheduler.fetch_traffic_data", return_value=frame
+        ):
             rows = run_sync_cycle("tok", data_dir=str(tmp_path), output_mode="yearly")
 
         assert rows == 2
@@ -454,6 +564,7 @@ class TestLib08MixedDateFormats:
 
 
 # Every CLI diagnostic belongs on stderr
+
 
 class TestLib09CliDiagnosticsGoToStderr:
     def test_missing_token_error_goes_to_stderr(self, capsys):
@@ -536,11 +647,20 @@ class TestLib09CliDiagnosticsGoToStderr:
         """The ASCII table is the payload - it must stay on stdout."""
         from gitlytics.core import print_repo_table
 
-        frame = pd.DataFrame([
-            {"repository": "owner/repo", "views": 10, "unique_visitors": 5,
-             "clones": 2, "unique_cloners": 1, "stars": 3, "forks": 0,
-             "top_referrer": "google.com"},
-        ])
+        frame = pd.DataFrame(
+            [
+                {
+                    "repository": "owner/repo",
+                    "views": 10,
+                    "unique_visitors": 5,
+                    "clones": 2,
+                    "unique_cloners": 1,
+                    "stars": 3,
+                    "forks": 0,
+                    "top_referrer": "google.com",
+                },
+            ]
+        )
         print_repo_table(frame)
         captured = capsys.readouterr()
         assert "REPOSITORY" in captured.out
@@ -549,9 +669,11 @@ class TestLib09CliDiagnosticsGoToStderr:
     def test_the_success_summary_stays_on_stdout(self, capsys):
         from gitlytics import cli
 
-        frame = pd.DataFrame([
-            {"date": "2026-01-01", "repository": "owner/repo", "views": 10},
-        ])
+        frame = pd.DataFrame(
+            [
+                {"date": "2026-01-01", "repository": "owner/repo", "views": 10},
+            ]
+        )
         with patch("gitlytics.cli.commands.fetch_traffic", return_value=frame):
             cli.main(["fetch", "--token", "t"])
         captured = capsys.readouterr()
@@ -560,6 +682,7 @@ class TestLib09CliDiagnosticsGoToStderr:
 
 
 # `python -m gitlytics --help` must print "gitlytics"
+
 
 class TestLib10ProgramName:
     def test_parser_uses_the_gitlytics_prog_name(self):
@@ -583,6 +706,7 @@ class TestLib10ProgramName:
 
 
 # The PEP 639 licence declaration
+
 
 class TestLib11Pep639License:
     def test_license_is_a_machine_readable_expression(self):
@@ -633,6 +757,7 @@ class TestLib11Pep639License:
 
 # The CI regression test must not hardcode the version
 
+
 class TestLib12DynamicVersion:
     def test_the_ci_test_no_longer_hardcodes_a_version(self):
         text = (ROOT / "tests" / "test_ci_and_release_contracts.py").read_text(
@@ -657,6 +782,7 @@ class TestLib12DynamicVersion:
 
 
 # Rate-limit backoff must be bounded and observable
+
 
 class TestLib14BoundedBackoff:
     def test_the_retry_budget_is_capped(self):
@@ -684,8 +810,10 @@ class TestLib14BoundedBackoff:
         """A user must never stare at a silent multi-second stall."""
         limited = _resp(403, headers={"Retry-After": "5"}, text="rate limit exceeded")
         ok = _resp(200, body={"ok": True})
-        with patch("gitlytics.core.client._http_get", side_effect=[limited, ok]), \
-             patch("gitlytics.core.client.time.sleep"):
+        with (
+            patch("gitlytics.core.client._http_get", side_effect=[limited, ok]),
+            patch("gitlytics.core.client.time.sleep"),
+        ):
             data, status = core._safe_get("https://api.github.com/x", {})
         assert status == 200 and data == {"ok": True}
         captured = capsys.readouterr()
@@ -696,8 +824,13 @@ class TestLib14BoundedBackoff:
         """The whole backoff sequence must fit in the retry budget."""
         always_limited = _resp(429, headers={"Retry-After": "60"})
         slept = []
-        with patch("gitlytics.core.client._http_get", return_value=always_limited), \
-             patch("gitlytics.core.client.time.sleep", side_effect=lambda d: slept.append(d)):
+        with (
+            patch("gitlytics.core.client._http_get", return_value=always_limited),
+            patch(
+                "gitlytics.core.client.time.sleep",
+                side_effect=lambda d: slept.append(d),
+            ),
+        ):
             data, status = core._safe_get("https://api.github.com/x", {})
         assert status == 429
         assert sum(slept) <= core._RETRY_BUDGET_SECONDS
@@ -711,6 +844,7 @@ class TestLib14BoundedBackoff:
 
 # The README must not promise what the wheel lacks
 
+
 class TestLib16ReadmeScope:
     @pytest.fixture(autouse=True)
     def _readme(self):
@@ -719,8 +853,10 @@ class TestLib16ReadmeScope:
 
     def test_the_card_section_is_scoped_to_the_hosted_service(self):
         assert "api.gitlytics.dev" in self.text
-        assert "not the pip package" in self.text.lower() or \
-            "not part of the pip package" in self.text.lower()
+        assert (
+            "not the pip package" in self.text.lower()
+            or "not part of the pip package" in self.text.lower()
+        )
 
     def test_the_wheel_contents_are_stated_explicitly(self):
         assert "pip install gitlytics" in self.text
@@ -746,6 +882,7 @@ class TestLib16ReadmeScope:
 
 # The packaged CSP must be applied by the local server
 
+
 class TestLib17LocalCsp:
     def test_the_headers_file_is_parsed(self, tmp_path):
         from gitlytics.api import _parse_static_security_headers
@@ -769,6 +906,7 @@ class TestLib17LocalCsp:
 
     def test_the_local_server_emits_the_content_security_policy(self):
         from fastapi.testclient import TestClient
+
         from gitlytics import api
 
         response = TestClient(api.app).get("/")
@@ -779,24 +917,33 @@ class TestLib17LocalCsp:
 
     def test_the_local_server_still_emits_the_basic_headers(self):
         from fastapi.testclient import TestClient
+
         from gitlytics import api
 
         response = TestClient(api.app).get("/")
         assert response.headers.get("x-content-type-options") == "nosniff"
         assert response.headers.get("x-frame-options") == "DENY"
-        assert response.headers.get("referrer-policy") == "strict-origin-when-cross-origin"
+        assert (
+            response.headers.get("referrer-policy") == "strict-origin-when-cross-origin"
+        )
 
     def test_the_csp_matches_the_packaged_headers_file(self):
         from fastapi.testclient import TestClient
+
         from gitlytics import api
 
         packaged = (SRC / "gitlytics" / "static" / "_headers").read_text(
             encoding="utf-8"
         )
-        expected = next(
-            line for line in packaged.splitlines()
-            if "Content-Security-Policy:" in line
-        ).split("Content-Security-Policy:", 1)[1].strip()
+        expected = (
+            next(
+                line
+                for line in packaged.splitlines()
+                if "Content-Security-Policy:" in line
+            )
+            .split("Content-Security-Policy:", 1)[1]
+            .strip()
+        )
 
         response = TestClient(api.app).get("/")
         assert response.headers["content-security-policy"] == expected
@@ -805,6 +952,7 @@ class TestLib17LocalCsp:
 #
 # the sync path can exclude private repositories from the vault
 #
+
 
 def test_af2_act_08_public_only_filters_private_repos_in_all_mode(monkeypatch):
     from gitlytics.core import traffic as core_traffic

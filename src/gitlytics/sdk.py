@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """High-level public SDK entry points: fetch_traffic, sync, and serve_dashboard."""
+
 from __future__ import annotations
 
 import logging
@@ -17,9 +18,19 @@ from gitlytics.io.payloads import _filter_public_only_df, build_json_payload
 logger = logging.getLogger(__name__)
 
 _VALID_METRICS = {
-    "views", "clones", "referrers", "paths", "stars", "forks",
-    "language", "topics", "watchers_count", "pushed_at",
-    "created_at", "open_issues_count", "releases",
+    "views",
+    "clones",
+    "referrers",
+    "paths",
+    "stars",
+    "forks",
+    "language",
+    "topics",
+    "watchers_count",
+    "pushed_at",
+    "created_at",
+    "open_issues_count",
+    "releases",
 }
 
 
@@ -36,10 +47,14 @@ def _coerce_metrics(metrics):
         result = list(metrics)
         for item in result:
             if not isinstance(item, str):
-                raise ValueError(f"metrics entries must be strings; got {type(item).__name__}.")
+                raise ValueError(
+                    f"metrics entries must be strings; got {type(item).__name__}."
+                )
         unknown = [item for item in result if item not in _VALID_METRICS]
         if unknown:
-            logger.warning(f"Unknown metric(s) ignored: {unknown}. Valid options: {sorted(_VALID_METRICS)}")
+            logger.warning(
+                f"Unknown metric(s) ignored: {unknown}. Valid options: {sorted(_VALID_METRICS)}"
+            )
             result = [item for item in result if item in _VALID_METRICS]
             if not result:
                 raise ValueError(
@@ -94,7 +109,9 @@ def fetch_traffic(
             else:
                 if Path(save_file).suffix.lower() == ".json":
                     payload = build_json_payload(
-                        export_df, return_format="timeseries", export_public_only=export_public_only
+                        export_df,
+                        return_format="timeseries",
+                        export_public_only=export_public_only,
                     )
                     _write_json_safely(str(save_file), payload)
                 else:
@@ -107,7 +124,9 @@ def fetch_traffic(
             "Choose one of: 'dataframe', 'timeseries', 'summary'."
         )
 
-    payload = build_json_payload(df, return_format=return_format, export_public_only=export_public_only)
+    payload = build_json_payload(
+        df, return_format=return_format, export_public_only=export_public_only
+    )
 
     if save_file:
         if not payload.get("repositories") and not allow_empty_save:
@@ -241,12 +260,18 @@ def serve_dashboard(
             abs_data_dir = str(Path(data_dir).expanduser().resolve())
             path = Path(abs_data_dir)
             if not path.exists():
-                _warn(f"⚠️ Warning: The specified data directory '{data_dir}' (resolved to '{abs_data_dir}') does not exist.")
+                _warn(
+                    f"⚠️ Warning: The specified data directory '{data_dir}' (resolved to '{abs_data_dir}') does not exist."
+                )
             elif not any(path.glob("traffic_*.csv")):
-                _warn(f"⚠️ Warning: No traffic_*.csv database files found in '{data_dir}' (resolved to '{abs_data_dir}').")
+                _warn(
+                    f"⚠️ Warning: No traffic_*.csv database files found in '{data_dir}' (resolved to '{abs_data_dir}')."
+                )
             os.environ["GITLYTICS_DATA_DIR"] = abs_data_dir
 
-        uvicorn.run("gitlytics.api:app", host=host, port=port, reload=False, log_level="warning")
+        uvicorn.run(
+            "gitlytics.api:app", host=host, port=port, reload=False, log_level="warning"
+        )
     finally:
         if orig_token is None:
             os.environ.pop("GITLYTICS_TOKEN", None)

@@ -23,9 +23,11 @@ Shared pytest configuration and fixtures for the gitlytics test suite.
 This conftest.py applies only to the offline pytest suite.
 It loads .env and provides shared fixtures.
 """
+
 import os
-import pytest
 from pathlib import Path
+
+import pytest
 
 # Load .env before any test runs
 # Walk up two levels from tests/ to find the project root where .env lives
@@ -34,6 +36,7 @@ _ENV_FILE = _PROJECT_ROOT / ".env"
 
 try:
     from dotenv import load_dotenv
+
     if _ENV_FILE.exists():
         # override=False means we won't overwrite a token that's already in the shell env
         load_dotenv(_ENV_FILE, override=False)
@@ -79,6 +82,7 @@ def _clear_api_caches():
                     cache.clear()
         try:
             from gitlytics import core as _core
+
             rcache = getattr(_core, "_stargazer_restricted_cache", None)
             rlock = getattr(_core, "_stargazer_restricted_lock", None)
             if rcache is not None:

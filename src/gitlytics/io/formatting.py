@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """Terminal table formatting for repository traffic summaries."""
+
 from __future__ import annotations
 
 import pandas as pd
@@ -13,7 +14,11 @@ def _col_sum(frame: pd.DataFrame, col: str) -> int:
     series = frame[col]
     if not pd.api.types.is_numeric_dtype(series):
         series = series.astype(str).str.replace(",", "", regex=False).str.strip()
-    numeric = pd.to_numeric(series, errors="coerce").replace([float("inf"), float("-inf")], 0).fillna(0)
+    numeric = (
+        pd.to_numeric(series, errors="coerce")
+        .replace([float("inf"), float("-inf")], 0)
+        .fillna(0)
+    )
     return int(numeric.sum())
 
 
@@ -24,7 +29,11 @@ def _col_last(frame: pd.DataFrame, col: str) -> int:
     series = frame[col]
     if not pd.api.types.is_numeric_dtype(series):
         series = series.astype(str).str.replace(",", "", regex=False).str.strip()
-    numeric = pd.to_numeric(series, errors="coerce").replace([float("inf"), float("-inf")], float("nan")).dropna()
+    numeric = (
+        pd.to_numeric(series, errors="coerce")
+        .replace([float("inf"), float("-inf")], float("nan"))
+        .dropna()
+    )
     return int(numeric.iloc[-1]) if not numeric.empty else 0
 
 
@@ -38,7 +47,11 @@ def print_repo_table(df: pd.DataFrame) -> None:
     safe_df = df.astype(object).where(df.notna(), "")
 
     repo_width = max(30, safe_df["repository"].astype(str).str.len().max() + 2)
-    ref_width = max(15, safe_df["top_referrer"].astype(str).str.len().max() + 2) if "top_referrer" in safe_df.columns else 15
+    ref_width = (
+        max(15, safe_df["top_referrer"].astype(str).str.len().max() + 2)
+        if "top_referrer" in safe_df.columns
+        else 15
+    )
     header = (
         f"{'REPOSITORY':<{repo_width}} "
         f"{'VIEWS':<8} {'U.VIEWS':<8} {'CLONES':<8} {'U.CLONES':<8} "
@@ -65,7 +78,11 @@ def print_repo_table(df: pd.DataFrame) -> None:
             if "top_referrer" in repo_df.columns
             else pd.Series(dtype=str)
         )
-        top_ref = top_ref_series.iloc[-1] if not top_ref_series.empty and top_ref_series.iloc[-1] != "nan" else ""
+        top_ref = (
+            top_ref_series.iloc[-1]
+            if not top_ref_series.empty and top_ref_series.iloc[-1] != "nan"
+            else ""
+        )
 
         total_account_views += views
         total_account_uniques += u_views
@@ -78,5 +95,7 @@ def print_repo_table(df: pd.DataFrame) -> None:
         )
 
     print("-" * len(header))
-    print(f"Total Account Views:  {total_account_views} (Unique: {total_account_uniques})")
+    print(
+        f"Total Account Views:  {total_account_views} (Unique: {total_account_uniques})"
+    )
     print(f"Total Account Clones: {total_account_clones}")

@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """Atomic file writes and cross-platform advisory CSV locking."""
+
 from __future__ import annotations
 
 import contextlib
@@ -15,7 +16,9 @@ def _write_json_safely(path: str, payload) -> None:
     """Write a JSON payload atomically via a temp file in the target folder."""
     target = Path(path).resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(prefix=".tmp_json_", suffix=".json", dir=target.parent)
+    fd, tmp_path = tempfile.mkstemp(
+        prefix=".tmp_json_", suffix=".json", dir=target.parent
+    )
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             json.dump(payload, handle, indent=2, ensure_ascii=False)
@@ -33,7 +36,9 @@ def _write_csv_safely(path: str, df) -> None:
     """Write a DataFrame to CSV atomically so interrupted writes never truncate output."""
     target = Path(path).resolve()
     target.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp_path = tempfile.mkstemp(prefix=".tmp_csv_", suffix=".csv", dir=target.parent)
+    fd, tmp_path = tempfile.mkstemp(
+        prefix=".tmp_csv_", suffix=".csv", dir=target.parent
+    )
     os.close(fd)
     try:
         df.to_csv(tmp_path, index=False)
@@ -59,9 +64,11 @@ def _csv_lock(csv_path: str, timeout: float = 30.0):
             try:
                 if os.name == "nt":
                     import msvcrt
+
                     msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
                 else:
                     import fcntl
+
                     fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 locked = True
                 break
@@ -75,9 +82,11 @@ def _csv_lock(csv_path: str, timeout: float = 30.0):
             try:
                 if os.name == "nt":
                     import msvcrt
+
                     msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
                 else:
                     import fcntl
+
                     fcntl.flock(fd, fcntl.LOCK_UN)
             except OSError:
                 pass

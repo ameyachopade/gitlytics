@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """Command handlers and entrypoint for the Gitlytics CLI."""
+
 from __future__ import annotations
 
 import argparse
@@ -61,11 +62,15 @@ def _cmd_fetch(args, token: str) -> None:
 
             if isinstance(result, pd.DataFrame):
                 repo_count = result["repository"].nunique() if not result.empty else 0
-                print(f"Fetch successful. {len(result)} row(s) across {repo_count} repo(s).")
+                print(
+                    f"Fetch successful. {len(result)} row(s) across {repo_count} repo(s)."
+                )
                 print("First 5 rows:")
                 print(result.head().to_string(index=False))
             else:
-                print("Fetch successful. Use --print-table or --save-file to see results.")
+                print(
+                    "Fetch successful. Use --print-table or --save-file to see results."
+                )
         except Exception:
             print("Fetch successful. Use --print-table or --save-file to see results.")
 
@@ -90,7 +95,12 @@ def _cmd_sync(args, token: str) -> None:
             metrics=args.metrics,
             public_only=args.public_only,
         )
-    except (TokenExpiredError, GitHubRateLimitError, GitHubAPIError, NoTrafficDataError) as exc:
+    except (
+        TokenExpiredError,
+        GitHubRateLimitError,
+        GitHubAPIError,
+        NoTrafficDataError,
+    ) as exc:
         _err(f"❌ Error: {exc}")
         sys.exit(1)
     except ValueError as exc:
@@ -113,7 +123,9 @@ def _cmd_dashboard(args, token: str | None) -> None:
     host = args.host
     is_loopback = host in _LOOPBACK_HOSTS
     if not is_loopback and not args.public_bind:
-        _err("❌ Error: Use --public-bind to listen on a non-loopback address (default is 127.0.0.1).")
+        _err(
+            "❌ Error: Use --public-bind to listen on a non-loopback address (default is 127.0.0.1)."
+        )
         sys.exit(2)
     if args.public_bind:
         if host == "127.0.0.1":
@@ -176,7 +188,12 @@ def main(argv=None) -> None:
 
     # CLI --token flag takes priority over GITLYTICS_TOKEN and GITHUB_TOKEN.
     raw_token = getattr(args, "token", None)
-    token = (raw_token or os.environ.get("GITLYTICS_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip() or None
+    token = (
+        raw_token
+        or os.environ.get("GITLYTICS_TOKEN")
+        or os.environ.get("GITHUB_TOKEN")
+        or ""
+    ).strip() or None
 
     if args.command in ("fetch", "sync") and not token:
         _err("❌ Error: No GitHub token provided. Use --token or set GITLYTICS_TOKEN.")

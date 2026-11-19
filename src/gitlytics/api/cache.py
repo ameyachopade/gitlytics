@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """Thread-safe bounded TTL/LRU caches for the local dashboard server."""
+
 from __future__ import annotations
 
 import hashlib
@@ -24,7 +25,9 @@ _AUTH_NEG_TTL = 10
 _AUTH_CACHE_MAX = 256
 
 # Historical CSV cache keyed by (resolved path, mtime) with mtime_ns + size verification.
-_CSV_CACHE: "OrderedDict[tuple[str, float], tuple[int, int, pd.DataFrame]]" = OrderedDict()
+_CSV_CACHE: "OrderedDict[tuple[str, float], tuple[int, int, pd.DataFrame]]" = (
+    OrderedDict()
+)
 _CSV_CACHE_LOCK = _threading.Lock()
 
 # Short-lived caches for live GitHub traffic and top-20 deep repository stats.
@@ -113,11 +116,15 @@ def _cached_live_traffic(token: str) -> pd.DataFrame:
     return frame
 
 
-def _cached_deep_stats(token: str, repos_with_views: list[dict], top_n: int = 20) -> dict:
+def _cached_deep_stats(
+    token: str, repos_with_views: list[dict], top_n: int = 20
+) -> dict:
     """Cache concurrent deep-stats results for the top N viewed repositories."""
     top_names = tuple(
         r["repository"]
-        for r in sorted(repos_with_views, key=lambda x: x.get("total_views", 0), reverse=True)[:top_n]
+        for r in sorted(
+            repos_with_views, key=lambda x: x.get("total_views", 0), reverse=True
+        )[:top_n]
     )
     key = (hashlib.sha256(token.encode()).hexdigest(), top_names)
     now = _time.time()

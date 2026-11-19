@@ -1,6 +1,7 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """Authenticated repository listing, lookup, and deep metadata fetchers."""
+
 from __future__ import annotations
 
 import logging
@@ -12,6 +13,7 @@ from gitlytics.exceptions import (
     GitHubRateLimitError,
     TokenExpiredError,
 )
+
 from . import client
 from .validation import validate_owner_repo
 
@@ -23,7 +25,9 @@ def _validate_full_name(full_name: str) -> str:
     """Validate and normalize an 'owner/repo' string before URL interpolation."""
     owner, sep, repo = (full_name or "").strip().partition("/")
     if not sep:
-        raise ValueError(f"Invalid repository name {full_name!r}: expected 'owner/repo'.")
+        raise ValueError(
+            f"Invalid repository name {full_name!r}: expected 'owner/repo'."
+        )
     owner, repo = validate_owner_repo(owner, repo)
     return f"{owner}/{repo}"
 
@@ -44,9 +48,14 @@ def get_deep_repo_stats(token: str, full_name: str) -> dict:
     }
 
     # Try weekly commit stats first; fall back to a 1-call Link-header count if computing (202).
-    ca_data, ca_status = client._safe_get(f"{client.BASE}/repos/{full_name}/stats/commit_activity", headers)
+    ca_data, ca_status = client._safe_get(
+        f"{client.BASE}/repos/{full_name}/stats/commit_activity", headers
+    )
     if ca_status == 202:
-        logger.info("Commit activity computing (202) for %s - will populate on next fetch.", full_name)
+        logger.info(
+            "Commit activity computing (202) for %s - will populate on next fetch.",
+            full_name,
+        )
     if isinstance(ca_data, list) and ca_data:
         stats["total_commits"] = sum(week.get("total", 0) for week in ca_data)
     else:
@@ -64,7 +73,9 @@ def get_deep_repo_stats(token: str, full_name: str) -> dict:
     except Exception as exc:
         logger.warning("Could not fetch open PRs for %s: %s", full_name, exc)
 
-    cp_data, _ = client._safe_get(f"{client.BASE}/repos/{full_name}/community/profile", headers)
+    cp_data, _ = client._safe_get(
+        f"{client.BASE}/repos/{full_name}/community/profile", headers
+    )
     if isinstance(cp_data, dict) and "files" in cp_data:
         files = cp_data["files"]
         stats["has_readme"] = bool(files.get("readme"))
@@ -75,7 +86,9 @@ def get_deep_repo_stats(token: str, full_name: str) -> dict:
     # Fetch release count and latest release timestamp in a single per_page=1 call.
     try:
         rel_url = f"{client.BASE}/repos/{full_name}/releases"
-        r = client._http_get(rel_url, headers=headers, params={"per_page": 1}, timeout=10)
+        r = client._http_get(
+            rel_url, headers=headers, params={"per_page": 1}, timeout=10
+        )
         if r.status_code == 200:
             link = r.headers.get("Link", "")
             match = re.search(r'[?&]page=(\d+)[^>]*>;\s*rel="last"', link)
@@ -85,16 +98,22 @@ def get_deep_repo_stats(token: str, full_name: str) -> dict:
             else:
                 stats["total_releases"] = len(data) if isinstance(data, list) else 0
             if isinstance(data, list) and data:
-                stats["last_release_at"] = data[0].get("published_at") or data[0].get("created_at")
+                stats["last_release_at"] = data[0].get("published_at") or data[0].get(
+                    "created_at"
+                )
     except Exception as exc:
         logger.warning("Could not fetch releases for %s: %s", full_name, exc)
 
     return stats
 
 
-def fetch_deep_stats_for_top(token: str, repos_with_views: list, top_n: int = 20) -> dict:
+def fetch_deep_stats_for_top(
+    token: str, repos_with_views: list, top_n: int = 20
+) -> dict:
     """Run get_deep_repo_stats concurrently for the top N repositories by views."""
-    ranked = sorted(repos_with_views, key=lambda x: x.get("total_views", 0), reverse=True)
+    ranked = sorted(
+        repos_with_views, key=lambda x: x.get("total_views", 0), reverse=True
+    )
     top = ranked[:top_n]
     results = {}
 
@@ -103,7 +122,9 @@ def fetch_deep_stats_for_top(token: str, repos_with_views: list, top_n: int = 20
 
     # Cap concurrency at 5 workers to stay safely under GitHub's abuse rate limit.
     with ThreadPoolExecutor(max_workers=5) as pool:
-        futures = {pool.submit(fetch_one, r["repository"]): r["repository"] for r in top}
+        futures = {
+            pool.submit(fetch_one, r["repository"]): r["repository"] for r in top
+        }
         for future in as_completed(futures):
             try:
                 name, stats = future.result()
@@ -135,8 +156,12 @@ def get_all_repos(token: str) -> list[dict]:
             )
         if not isinstance(data, list):
             if page == 1:
-                raise RuntimeError(f"Failed to fetch user repositories (HTTP {status}).")
-            logger.warning(f"Failed to fetch repositories page {page} (HTTP {status}); stopping pagination.")
+                raise RuntimeError(
+                    f"Failed to fetch user repositories (HTTP {status})."
+                )
+            logger.warning(
+                f"Failed to fetch repositories page {page} (HTTP {status}); stopping pagination."
+            )
             break
         if len(data) == 0:
             break

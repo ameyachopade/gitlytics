@@ -2,19 +2,27 @@
 tests/test_core.py
 Unit tests for gitlytics/core.py - network calls are mocked so these run offline.
 """
-import pytest
-from unittest.mock import patch, MagicMock
+
 import warnings
+from unittest.mock import MagicMock, patch
+
 import pandas as pd
+import pytest
 
 from gitlytics.core import (
-    validate_token, get_user_profile, make_headers,
-    get_all_repos, get_repo_traffic, build_tidy_rows,
-    fetch_traffic_data, pad_traffic_data, print_repo_table
+    build_tidy_rows,
+    fetch_traffic_data,
+    get_all_repos,
+    get_repo_traffic,
+    get_user_profile,
+    make_headers,
+    pad_traffic_data,
+    print_repo_table,
+    validate_token,
 )
 
-
 # make_headers
+
 
 class TestMakeHeaders:
     def test_returns_dict(self):
@@ -34,6 +42,7 @@ class TestMakeHeaders:
 
 
 # validate_token
+
 
 class TestValidateToken:
     @patch("gitlytics.core.client._http_get")
@@ -74,6 +83,7 @@ class TestValidateToken:
     def test_network_error_returns_false(self, mock_get):
         # Simulate being offline - should return False, not crash
         import requests
+
         mock_get.side_effect = requests.exceptions.ConnectionError("No internet")
         valid, msg = validate_token("any_token")
         assert valid is False
@@ -81,6 +91,7 @@ class TestValidateToken:
 
 
 # get_user_profile
+
 
 class TestGetUserProfile:
     @patch("gitlytics.core.client._http_get")
@@ -91,7 +102,7 @@ class TestGetUserProfile:
         mock_response.json.return_value = {
             "login": "ameyachopade",
             "name": "Ameya Chopade",
-            "avatar_url": "https://avatars.githubusercontent.com/u/123"
+            "avatar_url": "https://avatars.githubusercontent.com/u/123",
         }
         mock_get.return_value = mock_response
 
@@ -105,7 +116,11 @@ class TestGetUserProfile:
         # GitHub allows users to leave their display name blank - fall back to username
         mock_response = MagicMock()
         mock_response.status_code = 200
-        mock_response.json.return_value = {"login": "ameyachopade", "name": None, "avatar_url": "https://x"}
+        mock_response.json.return_value = {
+            "login": "ameyachopade",
+            "name": None,
+            "avatar_url": "https://x",
+        }
         mock_get.return_value = mock_response
 
         profile = get_user_profile("token")
@@ -119,10 +134,17 @@ class TestGetUserProfile:
         mock_get.return_value = mock_response
 
         profile = get_user_profile("bad_token")
-        assert profile == {"login": "", "name": "", "avatar_url": "", "followers": 0, "following": 0}
+        assert profile == {
+            "login": "",
+            "name": "",
+            "avatar_url": "",
+            "followers": 0,
+            "following": 0,
+        }
 
 
 # pad_traffic_data
+
 
 class TestPadTrafficData:
     def test_always_returns_15_days(self):
@@ -140,8 +162,16 @@ class TestPadTrafficData:
     def test_uses_api_data_for_active_days(self):
         # Actual traffic counts from GitHub should appear in the right day slot
         traffic = {
-            "views": {"views": [{"timestamp": "2025-06-14T00:00:00Z", "count": 42, "uniques": 10}]},
-            "clones": {"clones": [{"timestamp": "2025-06-14T00:00:00Z", "count": 5, "uniques": 3}]}
+            "views": {
+                "views": [
+                    {"timestamp": "2025-06-14T00:00:00Z", "count": 42, "uniques": 10}
+                ]
+            },
+            "clones": {
+                "clones": [
+                    {"timestamp": "2025-06-14T00:00:00Z", "count": 5, "uniques": 3}
+                ]
+            },
         }
         result = pad_traffic_data(traffic)
         day = next(r for r in result if r["date"] == "2025-06-14")
@@ -151,35 +181,64 @@ class TestPadTrafficData:
 
 # build_tidy_rows
 
+
 class TestBuildTidyRows:
     def test_returns_15_rows(self):
         # One row per calendar day - always 15 rows for each repo
-        repo = {"full_name": "user/repo", "private": False, "stargazers_count": 5, "forks_count": 2}
-        traffic = {"views": {"views": []}, "clones": {"clones": []}, "referrers": [], "paths": []}
+        repo = {
+            "full_name": "user/repo",
+            "private": False,
+            "stargazers_count": 5,
+            "forks_count": 2,
+        }
+        traffic = {
+            "views": {"views": []},
+            "clones": {"clones": []},
+            "referrers": [],
+            "paths": [],
+        }
         rows = build_tidy_rows(repo, traffic)
         assert len(rows) == 15
 
     def test_each_row_has_repository_field(self):
         # Every row must carry the repo name so the DataFrame can be grouped
-        repo = {"full_name": "user/repo", "private": False, "stargazers_count": 0, "forks_count": 0}
-        traffic = {"views": {"views": []}, "clones": {"clones": []}, "referrers": [], "paths": []}
+        repo = {
+            "full_name": "user/repo",
+            "private": False,
+            "stargazers_count": 0,
+            "forks_count": 0,
+        }
+        traffic = {
+            "views": {"views": []},
+            "clones": {"clones": []},
+            "referrers": [],
+            "paths": [],
+        }
         rows = build_tidy_rows(repo, traffic)
         assert all(r["repository"] == "user/repo" for r in rows)
 
     def test_raw_fields_are_json_strings(self):
         # _raw_referrers and _raw_paths must be JSON strings - the dashboard decodes them
-        repo = {"full_name": "u/r", "private": False, "stargazers_count": 0, "forks_count": 0}
+        repo = {
+            "full_name": "u/r",
+            "private": False,
+            "stargazers_count": 0,
+            "forks_count": 0,
+        }
         traffic = {
-            "views": {"views": []}, "clones": {"clones": []},
+            "views": {"views": []},
+            "clones": {"clones": []},
             "referrers": [{"referrer": "github.com", "count": 5, "uniques": 3}],
-            "paths": []
+            "paths": [],
         }
         import json
+
         rows = build_tidy_rows(repo, traffic)
         assert json.loads(rows[0]["_raw_referrers"])[0]["referrer"] == "github.com"
 
 
 # fetch_traffic_data (integration-style with mocks)
+
 
 class TestFetchTrafficData:
     @patch("gitlytics.core.traffic.get_all_repos")
@@ -187,11 +246,18 @@ class TestFetchTrafficData:
     def test_returns_dataframe(self, mock_traffic, mock_repos):
         # Should always return a DataFrame - even when a repo has zero traffic
         mock_repos.return_value = [
-            {"full_name": "user/repo", "private": False, "stargazers_count": 0, "forks_count": 0}
+            {
+                "full_name": "user/repo",
+                "private": False,
+                "stargazers_count": 0,
+                "forks_count": 0,
+            }
         ]
         mock_traffic.return_value = {
-            "views": {"views": []}, "clones": {"clones": []},
-            "referrers": [], "paths": []
+            "views": {"views": []},
+            "clones": {"clones": []},
+            "referrers": [],
+            "paths": [],
         }
         result = fetch_traffic_data("token")
         assert isinstance(result, pd.DataFrame)
@@ -208,6 +274,7 @@ class TestFetchTrafficData:
 
 # print_repo_table
 
+
 class TestPrintRepoTable:
     def test_empty_df_prints_no_data_message(self, capsys):
         # When there's nothing to show, just print a friendly message
@@ -217,11 +284,20 @@ class TestPrintRepoTable:
 
     def test_prints_header_with_data(self, capsys):
         # A non-empty DataFrame should produce a table with a REPOSITORY header
-        df = pd.DataFrame([{
-            "repository": "user/repo", "views": 10, "unique_visitors": 5,
-            "clones": 3, "unique_cloners": 2, "stars": 1, "forks": 0,
-            "top_referrer": "github.com"
-        }])
+        df = pd.DataFrame(
+            [
+                {
+                    "repository": "user/repo",
+                    "views": 10,
+                    "unique_visitors": 5,
+                    "clones": 3,
+                    "unique_cloners": 2,
+                    "stars": 1,
+                    "forks": 0,
+                    "top_referrer": "github.com",
+                }
+            ]
+        )
         print_repo_table(df)
         captured = capsys.readouterr()
         assert "REPOSITORY" in captured.out
@@ -229,16 +305,21 @@ class TestPrintRepoTable:
     def test_no_nan_string_in_output(self, capsys):
         # Bug fix: NaN values must NOT render as the literal string "nan"
         import math
-        df = pd.DataFrame([{
-            "repository": "user/repo",
-            "views": 10,
-            "unique_visitors": 5,
-            "clones": 3,
-            "unique_cloners": 2,
-            "stars": 1,
-            "forks": 0,
-            "top_referrer": float("nan"),  # The bug we are guarding against.
-        }])
+
+        df = pd.DataFrame(
+            [
+                {
+                    "repository": "user/repo",
+                    "views": 10,
+                    "unique_visitors": 5,
+                    "clones": 3,
+                    "unique_cloners": 2,
+                    "stars": 1,
+                    "forks": 0,
+                    "top_referrer": float("nan"),  # The bug we are guarding against.
+                }
+            ]
+        )
         print_repo_table(df)
         captured = capsys.readouterr()
         assert "nan" not in captured.out.lower()
@@ -246,11 +327,20 @@ class TestPrintRepoTable:
     def test_no_pandas_downcast_future_warning(self, capsys):
         # fillna("") on a mixed-dtype frame triggered a pandas 3.1
         # FutureWarning about silent object downcasting.
-        df = pd.DataFrame([{
-            "repository": "user/repo", "views": 10, "unique_visitors": 5,
-            "clones": 3, "unique_cloners": 2, "stars": 1, "forks": 0,
-            "top_referrer": float("nan"),
-        }])
+        df = pd.DataFrame(
+            [
+                {
+                    "repository": "user/repo",
+                    "views": 10,
+                    "unique_visitors": 5,
+                    "clones": 3,
+                    "unique_cloners": 2,
+                    "stars": 1,
+                    "forks": 0,
+                    "top_referrer": float("nan"),
+                }
+            ]
+        )
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             print_repo_table(df)
@@ -259,11 +349,20 @@ class TestPrintRepoTable:
 
     def test_long_referrer_does_not_truncate_header(self, capsys):
         # Bug fix: column width is computed from data, not hardcoded
-        df = pd.DataFrame([{
-            "repository": "user/repo", "views": 1, "unique_visitors": 1,
-            "clones": 0, "unique_cloners": 0, "stars": 0, "forks": 0,
-            "top_referrer": "https://very-long-referrer-domain.example.com/very/long/path"
-        }])
+        df = pd.DataFrame(
+            [
+                {
+                    "repository": "user/repo",
+                    "views": 1,
+                    "unique_visitors": 1,
+                    "clones": 0,
+                    "unique_cloners": 0,
+                    "stars": 0,
+                    "forks": 0,
+                    "top_referrer": "https://very-long-referrer-domain.example.com/very/long/path",
+                }
+            ]
+        )
         print_repo_table(df)
         captured = capsys.readouterr()
         # The long referrer should appear in full, not be cut off
@@ -272,15 +371,21 @@ class TestPrintRepoTable:
 
 # pad_traffic_data with malformed input (regression test for KeyError)
 
+
 class TestPadTrafficDataMalformed:
     def test_handles_missing_timestamp(self):
         # Bug fix: rows missing the 'timestamp' key must not crash the function
         traffic = {
-            "views": {"views": [
-                {"timestamp": "2025-06-14T00:00:00Z", "count": 5, "uniques": 2},
-                {"count": 99, "uniques": 1},  # No timestamp - should be skipped, not crash
-            ]},
-            "clones": {"clones": []}
+            "views": {
+                "views": [
+                    {"timestamp": "2025-06-14T00:00:00Z", "count": 5, "uniques": 2},
+                    {
+                        "count": 99,
+                        "uniques": 1,
+                    },  # No timestamp - should be skipped, not crash
+                ]
+            },
+            "clones": {"clones": []},
         }
         result = pad_traffic_data(traffic)
         # Should still produce 15 rows and have the 5 views on the right day
@@ -291,11 +396,13 @@ class TestPadTrafficDataMalformed:
 
 # fetch_traffic_data with empty repo_names list
 
+
 class TestFetchTrafficDataEmptyList:
     @patch("gitlytics.core.traffic.get_all_repos")
     def test_explicit_empty_repo_list_does_not_call_get_all_repos(self, mock_all):
         # Bug fix: repo_names=[] must mean "fetch nothing", not "fetch everything"
         from gitlytics.core import fetch_traffic_data
+
         result = fetch_traffic_data("token", repo_names=[])
         assert result.empty
         mock_all.assert_not_called()
@@ -303,12 +410,14 @@ class TestFetchTrafficDataEmptyList:
 
 # get_public_repos respects max_repos (no over-fetching)
 
+
 class TestGetPublicReposRespectMaxRepos:
     @patch("gitlytics.core.users._fetch_public_repos_by_stars", return_value=[])
     @patch("gitlytics.core.users._fetch_public_repos_by_updated")
     def test_max_repos_caps_per_page(self, mock_recent, mock_starred):
         # Bug fix: don't hardcode per_page=50 - respect max_repos to avoid wasted calls
         from gitlytics.core import get_public_repos
+
         mock_recent.return_value = []
         mock_starred.return_value = []
         get_public_repos("user", max_repos=5)
@@ -319,12 +428,14 @@ class TestGetPublicReposRespectMaxRepos:
 
 # _safe_get soft-error detection
 
+
 class TestSafeGetSoftError:
     @patch("gitlytics.core.client._http_get")
     def test_generic_message_field_is_treated_as_soft_error(self, mock_get):
         # Bug fix: any 200-OK response with a 'message' field should be a soft error,
         # not just the two literal strings "Not Found" / "Bad credentials".
         from gitlytics.core import _safe_get
+
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"message": "Validation Failed"}
@@ -337,6 +448,7 @@ class TestSafeGetSoftError:
     def test_normal_200_is_returned_intact(self, mock_get):
         # Sanity check: a normal 200-without-message response still works
         from gitlytics.core import _safe_get
+
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"items": [1, 2, 3]}
@@ -348,10 +460,12 @@ class TestSafeGetSoftError:
 
 # Failed traffic fetches must not fabricate zero rows
 
+
 class TestTrafficFailureHandling:
     @patch("gitlytics.core.client._safe_get")
     def test_both_traffic_endpoints_failed_marks_fetch_not_ok(self, mock_safe_get):
         from gitlytics.core import get_repo_traffic
+
         mock_safe_get.return_value = ({}, 403)
         traffic = get_repo_traffic("token", "owner/repo", metrics=["views", "clones"])
         assert traffic["_fetch_ok"] is False
@@ -360,22 +474,31 @@ class TestTrafficFailureHandling:
 
     @patch("gitlytics.core.client._safe_get")
     def test_failed_fetch_produces_no_tidy_rows(self, mock_safe_get):
-        from gitlytics.core import get_repo_traffic, build_tidy_rows
+        from gitlytics.core import build_tidy_rows, get_repo_traffic
+
         mock_safe_get.return_value = ({}, 429)
-        repo = {"full_name": "owner/repo", "private": False,
-                "stargazers_count": 1, "forks_count": 0}
+        repo = {
+            "full_name": "owner/repo",
+            "private": False,
+            "stargazers_count": 1,
+            "forks_count": 0,
+        }
         traffic = get_repo_traffic("token", "owner/repo", metrics=["views", "clones"])
         assert build_tidy_rows(repo, traffic) == []
 
     @patch("gitlytics.core.client._safe_get")
     def test_partial_fetch_keeps_successful_metric_only(self, mock_safe_get):
-        from gitlytics.core import get_repo_traffic, build_tidy_rows
+        from gitlytics.core import build_tidy_rows, get_repo_traffic
 
         def side_effect(url, headers, params=None):
             if url.endswith("/traffic/views"):
                 return {}, 403
             if url.endswith("/traffic/clones"):
-                return {"clones": [{"timestamp": "2025-06-14T00:00:00Z", "count": 7, "uniques": 3}]}, 200
+                return {
+                    "clones": [
+                        {"timestamp": "2025-06-14T00:00:00Z", "count": 7, "uniques": 3}
+                    ]
+                }, 200
             if url.endswith("/traffic/popular/referrers"):
                 return [], 200
             if url.endswith("/traffic/popular/paths"):
@@ -383,8 +506,12 @@ class TestTrafficFailureHandling:
             return 0, 200
 
         mock_safe_get.side_effect = side_effect
-        repo = {"full_name": "owner/repo", "private": False,
-                "stargazers_count": 1, "forks_count": 0}
+        repo = {
+            "full_name": "owner/repo",
+            "private": False,
+            "stargazers_count": 1,
+            "forks_count": 0,
+        }
         traffic = get_repo_traffic("token", "owner/repo", metrics=["views", "clones"])
         assert traffic["_fetch_ok"] is True
         rows = build_tidy_rows(repo, traffic)
@@ -397,6 +524,7 @@ class TestTrafficFailureHandling:
     @patch("gitlytics.core.client.time.sleep", return_value=None)
     def test_transient_5xx_is_retried(self, mock_sleep, mock_get):
         from gitlytics.core import _safe_get
+
         first = MagicMock(status_code=503, headers={})
         second = MagicMock(status_code=200, headers={})
         second.json.return_value = {"ok": True}
@@ -411,10 +539,16 @@ class TestTrafficFailureHandling:
     def test_repos_are_fetched_concurrently(self, mock_traffic, mock_repos):
         import threading
         import time as _time
+
         from gitlytics.core import fetch_traffic_data
+
         mock_repos.return_value = [
-            {"full_name": f"owner/repo{i}", "private": False,
-             "stargazers_count": 0, "forks_count": 0}
+            {
+                "full_name": f"owner/repo{i}",
+                "private": False,
+                "stargazers_count": 0,
+                "forks_count": 0,
+            }
             for i in range(4)
         ]
         state = {"active": 0, "max": 0}
@@ -427,8 +561,13 @@ class TestTrafficFailureHandling:
             _time.sleep(0.05)
             with lock:
                 state["active"] -= 1
-            return {"views": {"views": []}, "clones": {"clones": []},
-                    "referrers": [], "paths": [], "releases": 0}
+            return {
+                "views": {"views": []},
+                "clones": {"clones": []},
+                "referrers": [],
+                "paths": [],
+                "releases": 0,
+            }
 
         mock_traffic.side_effect = fake_traffic
         df = fetch_traffic_data("token")

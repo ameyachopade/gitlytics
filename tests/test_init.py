@@ -7,27 +7,29 @@ Unit tests for gitlytics/__init__.py public entrypoints:
   - sync
   - serve_dashboard
 """
+
 import json
 import os
-import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 import pandas as pd
+import pytest
 
 import gitlytics
 from gitlytics import (
+    GitHubRateLimitError,
+    StargazersRestrictedError,
+    StarHistoryFetchError,
     _coerce_metrics,
     _write_json_safely,
     fetch_traffic,
-    sync,
     serve_dashboard,
-    GitHubRateLimitError,
-    StarHistoryFetchError,
-    StargazersRestrictedError,
+    sync,
 )
 
-
 # _coerce_metrics
+
 
 class TestCoerceMetrics:
     def test_none_returns_none(self):
@@ -60,6 +62,7 @@ class TestCoerceMetrics:
 
 # _write_json_safely
 
+
 class TestWriteJsonSafely:
     def test_writes_to_nested_path(self, tmp_path):
         target = tmp_path / "subdir" / "nested" / "output.json"
@@ -74,29 +77,32 @@ class TestWriteJsonSafely:
 
 # fetch_traffic
 
+
 class TestFetchTraffic:
     def _sample_df(self):
-        return pd.DataFrame([
-            {
-                "date": "2026-06-01",
-                "repository": "owner/repo",
-                "is_private": False,
-                "views": 10,
-                "unique_visitors": 5,
-                "clones": 4,
-                "unique_cloners": 2,
-                "stars": 15,
-                "forks": 3,
-                "top_referrer": "google.com",
-                "top_referrer_views": 8,
-                "top_referrer_uniques": 4,
-                "top_path": "/README.md",
-                "top_path_views": 6,
-                "top_path_uniques": 3,
-                "_raw_referrers": "[]",
-                "_raw_paths": "[]",
-            }
-        ])
+        return pd.DataFrame(
+            [
+                {
+                    "date": "2026-06-01",
+                    "repository": "owner/repo",
+                    "is_private": False,
+                    "views": 10,
+                    "unique_visitors": 5,
+                    "clones": 4,
+                    "unique_cloners": 2,
+                    "stars": 15,
+                    "forks": 3,
+                    "top_referrer": "google.com",
+                    "top_referrer_views": 8,
+                    "top_referrer_uniques": 4,
+                    "top_path": "/README.md",
+                    "top_path_views": 6,
+                    "top_path_uniques": 3,
+                    "_raw_referrers": "[]",
+                    "_raw_paths": "[]",
+                }
+            ]
+        )
 
     @patch("gitlytics.sdk.fetch_traffic_data")
     def test_return_format_dataframe(self, mock_fetch):
@@ -162,6 +168,7 @@ class TestFetchTraffic:
 
 # sync
 
+
 class TestSync:
     @patch("gitlytics.sdk.run_sync")
     def test_sync_delegates_to_run_sync(self, mock_run_sync, tmp_path):
@@ -173,7 +180,7 @@ class TestSync:
             schedule_cron=None,
             export_json=None,
             export_public_only=True,
-            metrics=["views"]
+            metrics=["views"],
         )
         mock_run_sync.assert_called_once()
         _, kwargs = mock_run_sync.call_args
@@ -185,24 +192,34 @@ class TestSync:
 
 # serve_dashboard
 
+
 class TestServeDashboard:
     @patch("uvicorn.run")
     def test_serve_dashboard_runs_uvicorn(self, mock_uvicorn_run, tmp_path):
         test_dir = str(tmp_path / "data")
         os.makedirs(test_dir, exist_ok=True)
         # Create a dummy CSV so no warning
-        (Path(test_dir) / "traffic_2026-06.csv").write_text("date,repository\n2026-06-01,owner/repo\n")
+        (Path(test_dir) / "traffic_2026-06.csv").write_text(
+            "date,repository\n2026-06-01,owner/repo\n"
+        )
 
-        serve_dashboard(host="127.0.0.1", port=9999, token="ghp_dash", data_dir=test_dir)
+        serve_dashboard(
+            host="127.0.0.1", port=9999, token="ghp_dash", data_dir=test_dir
+        )
         mock_uvicorn_run.assert_called_once_with(
-            "gitlytics.api:app", host="127.0.0.1", port=9999, reload=False, log_level="warning"
+            "gitlytics.api:app",
+            host="127.0.0.1",
+            port=9999,
+            reload=False,
+            log_level="warning",
         )
         # Verify env vars were cleaned up
         assert os.environ.get("GITLYTICS_TOKEN") != "ghp_dash"
 
     def test_serve_dashboard_warns_on_missing_dir(self, capsys):
         with patch("uvicorn.run"):
-            serve_dashboard(host="127.0.0.1", port=9999, data_dir="nonexistent_xyz_data_dir_123")
+            serve_dashboard(
+                host="127.0.0.1", port=9999, data_dir="nonexistent_xyz_data_dir_123"
+            )
             captured = capsys.readouterr()
             assert "Warning" in captured.out
-

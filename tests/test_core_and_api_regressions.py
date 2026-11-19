@@ -1,4 +1,5 @@
 """Offline regression tests for core library, CSV storage, API, and CLI edge cases."""
+
 import io
 import json
 import os
@@ -14,19 +15,24 @@ import pytest
 from fastapi.testclient import TestClient
 
 import gitlytics
-from gitlytics import fetch_traffic, fetch_star_history, serve_dashboard
-from gitlytics.api import app, _read_csv_cached, _CSV_CACHE
-from gitlytics.automation import run_sync, run_sync_cycle, _merge_csv_locked, export_json_database
+from gitlytics import fetch_star_history, fetch_traffic, serve_dashboard
+from gitlytics.api import _CSV_CACHE, _read_csv_cached, app
+from gitlytics.automation import (
+    _merge_csv_locked,
+    export_json_database,
+    run_sync,
+    run_sync_cycle,
+)
 from gitlytics.core import (
-    validate_token,
-    print_repo_table,
-    pad_traffic_data,
-    get_public_user,
-    get_public_repos,
-    _mark_stargazers_restricted,
-    _is_stargazers_restricted,
-    _stargazer_restricted_cache,
     _STARGAZER_RESTRICTED_MAXSIZE,
+    _is_stargazers_restricted,
+    _mark_stargazers_restricted,
+    _stargazer_restricted_cache,
+    get_public_repos,
+    get_public_user,
+    pad_traffic_data,
+    print_repo_table,
+    validate_token,
 )
 from gitlytics.process import _safe_int, build_json_payload, build_react_payload
 
@@ -45,46 +51,57 @@ def test_lib2_01_token_validation_rate_limit_distinction():
 
 def test_lib2_02_print_repo_table_with_nan_metrics():
     """print_repo_table must not crash with TypeError when metrics contain NaN."""
-    df = pd.DataFrame({
-        "repository": ["owner/repo1", "owner/repo1"],
-        "views": [10, np.nan],
-        "unique_visitors": [np.nan, 5],
-        "clones": [2, np.nan],
-        "unique_cloners": [np.nan, 1],
-        "stars": [100, np.nan],
-        "forks": [10, np.nan],
-        "top_referrer": ["google.com", np.nan],
-    })
+    df = pd.DataFrame(
+        {
+            "repository": ["owner/repo1", "owner/repo1"],
+            "views": [10, np.nan],
+            "unique_visitors": [np.nan, 5],
+            "clones": [2, np.nan],
+            "unique_cloners": [np.nan, 1],
+            "stars": [100, np.nan],
+            "forks": [10, np.nan],
+            "top_referrer": ["google.com", np.nan],
+        }
+    )
     # Must not raise TypeError
     print_repo_table(df)
 
 
 def test_lib2_03_is_private_boolean_coercion():
     """Filtering ~is_private on object series must not crash with TypeError or KeyError."""
-    df = pd.DataFrame({
-        "repository": ["owner/public", "owner/private"],
-        "date": ["2026-11-01", "2026-11-01"],
-        "views": [10, 20],
-        "is_private": [False, True],  # object series after CSV roundtrip
-    }, dtype=object)
+    df = pd.DataFrame(
+        {
+            "repository": ["owner/public", "owner/private"],
+            "date": ["2026-11-01", "2026-11-01"],
+            "views": [10, 20],
+            "is_private": [False, True],  # object series after CSV roundtrip
+        },
+        dtype=object,
+    )
 
-    payload = build_json_payload(df, return_format="timeseries", export_public_only=True)
+    payload = build_json_payload(
+        df, return_format="timeseries", export_public_only=True
+    )
     assert "owner/public" in payload["repositories"]
     assert "owner/private" not in payload["repositories"]
 
 
 def test_lib2_04_yearly_sync_groups_by_row_date_year(tmp_path):
     """Yearly sync mode must group by date row year, not execution year."""
-    df = pd.DataFrame({
-        "repository": ["owner/repo", "owner/repo"],
-        "date": ["2025-12-31", "2026-01-01"],
-        "views": [10, 20],
-        "unique_visitors": [5, 10],
-        "clones": [1, 2],
-        "unique_cloners": [1, 2],
-    })
+    df = pd.DataFrame(
+        {
+            "repository": ["owner/repo", "owner/repo"],
+            "date": ["2025-12-31", "2026-01-01"],
+            "views": [10, 20],
+            "unique_visitors": [5, 10],
+            "clones": [1, 2],
+            "unique_cloners": [1, 2],
+        }
+    )
     with patch("gitlytics.automation.scheduler.fetch_traffic_data", return_value=df):
-        run_sync_cycle("token", ["owner/repo"], data_dir=str(tmp_path), output_mode="yearly")
+        run_sync_cycle(
+            "token", ["owner/repo"], data_dir=str(tmp_path), output_mode="yearly"
+        )
 
     # Should produce traffic_2025.csv and traffic_2026.csv
     file_2025 = tmp_path / "traffic_2025.csv"
@@ -96,13 +113,17 @@ def test_lib2_04_yearly_sync_groups_by_row_date_year(tmp_path):
 def test_lib2_05_csv_merge_cleans_nan_strings(tmp_path):
     """_merge_csv_locked must not write literal string 'nan' to CSV."""
     csv_file = tmp_path / "traffic_test.csv"
-    df = pd.DataFrame([{
-        "repository": "owner/repo",
-        "date": "2026-11-01",
-        "views": 10,
-        "language": None,
-        "top_referrer": np.nan,
-    }])
+    df = pd.DataFrame(
+        [
+            {
+                "repository": "owner/repo",
+                "date": "2026-11-01",
+                "views": 10,
+                "language": None,
+                "top_referrer": np.nan,
+            }
+        ]
+    )
     _merge_csv_locked(df, str(csv_file))
 
     raw_text = csv_file.read_text(encoding="utf-8")
@@ -113,8 +134,14 @@ def test_lib2_05_csv_merge_cleans_nan_strings(tmp_path):
 def test_lib2_08_star_history_cache_control_private():
     """/api/star-history must use private Cache-Control to prevent shared proxy leakage."""
     client = TestClient(app)
-    with patch("gitlytics.api.routes.fetch_star_history", return_value=[{"date": "2026-11-01", "total": 10}]):
-        res = client.get("/api/star-history?owner=test&repo=repo", headers={"Authorization": "Bearer token"})
+    with patch(
+        "gitlytics.api.routes.fetch_star_history",
+        return_value=[{"date": "2026-11-01", "total": 10}],
+    ):
+        res = client.get(
+            "/api/star-history?owner=test&repo=repo",
+            headers={"Authorization": "Bearer token"},
+        )
         assert res.status_code == 200
         assert "private" in res.headers["cache-control"]
         assert "public" not in res.headers["cache-control"]
@@ -123,12 +150,16 @@ def test_lib2_08_star_history_cache_control_private():
 def test_lib2_12_atomic_json_writes(tmp_path):
     """export_json_database and _write_json_safely write atomically."""
     csv_file = tmp_path / "traffic_2026-11.csv"
-    pd.DataFrame([{
-        "repository": "owner/repo",
-        "date": "2026-11-01",
-        "views": 5,
-        "is_private": False,
-    }]).to_csv(csv_file, index=False)
+    pd.DataFrame(
+        [
+            {
+                "repository": "owner/repo",
+                "date": "2026-11-01",
+                "views": 5,
+                "is_private": False,
+            }
+        ]
+    ).to_csv(csv_file, index=False)
 
     export_dest = tmp_path / "export.json"
     export_json_database(str(tmp_path), str(export_dest), export_public_only=True)
@@ -160,12 +191,16 @@ def test_lib2_15_run_sync_invalid_cron_raises():
 
 def test_lib2_16_fetch_traffic_export_public_only_flag(tmp_path):
     """fetch_traffic respects export_public_only parameter."""
-    df = pd.DataFrame([{
-        "repository": "owner/secret",
-        "date": "2026-11-01",
-        "views": 10,
-        "is_private": True,
-    }])
+    df = pd.DataFrame(
+        [
+            {
+                "repository": "owner/secret",
+                "date": "2026-11-01",
+                "views": 10,
+                "is_private": True,
+            }
+        ]
+    )
     with patch("gitlytics.sdk.fetch_traffic_data", return_value=df):
         out_csv = tmp_path / "out.csv"
         # When export_public_only=False, private repos are saved
@@ -187,6 +222,7 @@ def test_lib2_17_spa_fallback_exact_api_returns_404():
 def test_lib2_23_serve_dashboard_env_token_leakage():
     """serve_dashboard does not set GITLYTICS_TOKEN on non-loopback hosts."""
     import uvicorn
+
     orig_token = os.environ.get("GITLYTICS_TOKEN")
     try:
         with patch.object(uvicorn, "run"):
@@ -222,6 +258,7 @@ def test_lib2_28_stargazer_restricted_cache_bounded():
 def test_lib2_29_username_reexport_module():
     """gitlytics.username backward compatibility module re-exports functions."""
     import gitlytics.username as u
+
     assert hasattr(u, "get_public_user")
     assert hasattr(u, "get_public_repos")
     assert hasattr(u, "validate_github_username")
@@ -230,6 +267,7 @@ def test_lib2_29_username_reexport_module():
 def test_act2_15_cli_metrics_empty_args():
     """CLI sync and fetch parsers accept empty metrics without crashing."""
     from gitlytics.cli import build_parser
+
     parser = build_parser()
     args = parser.parse_args(["sync", "--metrics"])
     assert args.metrics == []
