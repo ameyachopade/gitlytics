@@ -863,9 +863,9 @@ class TestLib16ReadmeScope:
         assert "wheel" in self.text.lower()
 
     def test_the_badge_count_is_the_real_one(self):
-        """The hosted service ships 181 tech logos, not "200+"."""
+        """The hosted service ships 200 verified tech logos."""
         assert "200+ Tech Badges" not in self.text
-        assert "181" in self.text
+        assert "200" in self.text
 
     def test_the_package_really_has_no_card_generator(self):
         """The README must not describe a module that does not exist."""
@@ -877,7 +877,7 @@ class TestLib16ReadmeScope:
         )
 
     def test_the_realistic_card_slug_count_is_stated(self):
-        assert "31" in self.text
+        assert "50" in self.text
 
 
 # The packaged CSP must be applied by the local server

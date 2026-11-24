@@ -21,7 +21,9 @@ Bypass GitHub's 14-day traffic cliff, track stargazer trajectories, and launch a
 
 > **What ships in the `pip install gitlytics` wheel:** the CLI, the Python SDK, and the local/self-hosted React dashboard. The **SVG profile cards and tech-badge renderer is a separate hosted service** at [`api.gitlytics.dev`](https://api.gitlytics.dev) - the package does not contain a card generator. See [The Gitlytics Ecosystem](#-the-gitlytics-ecosystem).
 
-[**Explore Live Dashboard**](https://dashboard.gitlytics.dev) • [**Read the Docs**](https://docs.gitlytics.dev) • [**Agent Skills (skills.sh)**](https://skills.sh/ameyachopade/gitlytics-plugin) • [**Engineering Blog**](https://blog.gitlytics.dev) • [**GitHub Action**](https://github.com/ameyachopade/gitlytics-github-traffic-automation)
+[![Blog](https://api.gitlytics.dev/api/badge/static.svg?label=Blog&message=blog.gitlytics.dev&color=f59e0b)](https://blog.gitlytics.dev)
+[![GitHub Action](https://api.gitlytics.dev/api/badge/tech.svg?slug=githubactions&style=icon_label_value&label=Action&value=Traffic%20Sync)](https://github.com/ameyachopade/gitlytics-github-traffic-automation)
+[![npm](https://api.gitlytics.dev/api/badge/tech.svg?slug=npm&style=icon_label_value&label=npm&value=%40gitlytics%2Fcli)](https://www.npmjs.com/package/@gitlytics/cli)
 
 <br/>
 
