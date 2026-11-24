@@ -34,7 +34,7 @@ Key suites to run when touching specific subsystems:
 
 ## Standards & Guardrails
 
-- **Version Synchronization**: Whenever bumping `version` in `pyproject.toml` and `src/gitlytics/_version.py`, keep `gitlytics-metadata-pages/version.json` in sync.
+- **Version Synchronization**: Keep `version` in `pyproject.toml`, `src/gitlytics/_version.py`, and `src/gitlytics/static/index.html` in sync.
 - **Zero Secrets**: Never commit `.env` files, GitHub PATs (`ghp_...` / `github_pat_...`), or local CSV archives containing private repository data.
 - **Local MCP Safety**: Never add raw token parameters to `gitlytics mcp` tool schemas; read tokens strictly from environment variables (`GITLYTICS_TOKEN` / `GITHUB_TOKEN`) and enforce `--data-dir` path containment.
 - **Security Issues**: Follow [SECURITY.md](SECURITY.md) and report vulnerabilities privately rather than opening a public issue.
@@ -53,5 +53,5 @@ Key suites to run when touching specific subsystems:
 | [gitlytics](https://github.com/ameyachopade/gitlytics) *(this repo)* | Core Python library, CLI, local stdio MCP & local dashboard | [PyPI](https://pypi.org/project/gitlytics) |
 | [gitlytics-plugin](https://github.com/ameyachopade/gitlytics-plugin) | Official Antigravity plugin, MCP config & 4 `npx skills` | [skills.sh](https://skills.sh/ameyachopade/gitlytics-plugin) |
 | [gitlytics-github-traffic-automation](https://github.com/ameyachopade/gitlytics-github-traffic-automation) | Composite GitHub Action for automated CSV backups | [GitHub Action](https://github.com/ameyachopade/gitlytics-github-traffic-automation) |
-| [gitlytics-metadata-pages](https://github.com/ameyachopade/gitlytics-metadata-pages) | Homepage, Docs Hub & Engineering Blog | [gitlytics.dev](https://gitlytics.dev) / [docs.gitlytics.dev](https://docs.gitlytics.dev) |
+| **Gitlytics Web & Docs** | Homepage, Docs Hub & Engineering Blog | [gitlytics.dev](https://gitlytics.dev) / [docs.gitlytics.dev](https://docs.gitlytics.dev) / [blog.gitlytics.dev](https://blog.gitlytics.dev) |
 | Gitlytics Cloud Dashboard & API | Hosted Analytics Dashboard, SVG Engine & MCP Server | [dashboard.gitlytics.dev](https://dashboard.gitlytics.dev) / [api.gitlytics.dev](https://api.gitlytics.dev) |
