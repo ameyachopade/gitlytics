@@ -12,15 +12,16 @@
 [![React](https://api.gitlytics.dev/api/badge/tech.svg?slug=react&style=icon_label_value&label=Frontend&value=React%2019)](https://react.dev/)
 [![Live Dashboard](https://api.gitlytics.dev/api/badge/static.svg?label=Studio&message=dashboard.gitlytics.dev&color=818cf8)](https://dashboard.gitlytics.dev)
 [![Documentation](https://api.gitlytics.dev/api/badge/static.svg?label=Docs&message=docs.gitlytics.dev&color=10b981)](https://docs.gitlytics.dev)
+[![Agent Skills](https://api.gitlytics.dev/api/badge/tech.svg?slug=vercel&style=icon_label_value&label=skills.sh&value=4%20Agent%20Skills)](https://skills.sh/ameyachopade/gitlytics-plugin)
 
 <br/>
 
 **The complete developer analytics suite for GitHub.**  
 Bypass GitHub's 14-day traffic cliff, track stargazer trajectories, and launch a local or self-hosted analytics dashboard in seconds.
 
-> **What ships in the `pip install gitlytics` wheel:** the CLI, the Python SDK, and the local/self-hosted React dashboard. The **SVG profile cards and tech-badge renderer is a separate hosted service** at [`api.gitlytics.dev`](https://api.gitlytics.dev) - the package does not contain a card generator. See [Ecosystem & Links](#-ecosystem--links).
+> **What ships in the `pip install gitlytics` wheel:** the CLI, the Python SDK, and the local/self-hosted React dashboard. The **SVG profile cards and tech-badge renderer is a separate hosted service** at [`api.gitlytics.dev`](https://api.gitlytics.dev) - the package does not contain a card generator. See [The Gitlytics Ecosystem](#-the-gitlytics-ecosystem).
 
-[**Explore Live Dashboard**](https://dashboard.gitlytics.dev) • [**Read the Docs**](https://docs.gitlytics.dev) • [**Engineering Blog**](https://blog.gitlytics.dev) • [**GitHub Action**](https://github.com/ameyachopade/gitlytics-github-traffic-automation)
+[**Explore Live Dashboard**](https://dashboard.gitlytics.dev) • [**Read the Docs**](https://docs.gitlytics.dev) • [**Agent Skills (skills.sh)**](https://skills.sh/ameyachopade/gitlytics-plugin) • [**Engineering Blog**](https://blog.gitlytics.dev) • [**GitHub Action**](https://github.com/ameyachopade/gitlytics-github-traffic-automation)
 
 <br/>
 
@@ -36,7 +37,8 @@ Bypass GitHub's 14-day traffic cliff, track stargazer trajectories, and launch a
 | **📈 Stargazer Trajectories** | Real-time cumulative star growth tracking and milestone timeline projections. |
 | **🤖 AI Health Scorecards** | Cloud AI diagnostics analyzing commit velocity, issue health, PR turnaround, and traffic surges. |
 | **💻 CLI, Python SDK & Web UI** | Use it as a terminal command, import it into Python pipelines, or self-host the full React studio. |
-| **🎨 Hosted SVG Cards & Logos** | The hosted service at [`api.gitlytics.dev`](https://api.gitlytics.dev) renders 31 profile-card slugs in 33 high-contrast themes, plus 181 tech-logo capsules. Not part of the pip package. |
+| **🎨 Hosted SVG Cards & Logos** | The hosted service at [`api.gitlytics.dev`](https://api.gitlytics.dev) renders 50 profile-card slugs in 50 unified themes across 20 visual styles, plus 200 tech-logo capsules. Not part of the pip package. |
+| **🔌 MCP Server & Agent Skills** | Connect AI agents via 1-click OAuth ([`api.gitlytics.dev/mcp-oauth`](https://api.gitlytics.dev/mcp-oauth)), zero-login public mode ([`api.gitlytics.dev/mcp`](https://api.gitlytics.dev/mcp)), offline stdio (`gitlytics mcp`), or 4 skills via `npx skills add ameyachopade/gitlytics-plugin -g`. |
 
 ---
 
@@ -49,32 +51,33 @@ Elevate your GitHub profile README with the Gitlytics hosted native, dynamic vec
 ### 🖼️ Featured Card Previews
 
 <div align="center">
-  <table border="0" width="100%">
-    <tr>
-      <td align="center" width="50%">
-        <b>👤 Flagship Developer Profile Card</b> (Obsidian Slate)<br/>
-        <sub>Avatar, bio, verified status, 4 metric squircles & top languages bar</sub><br/><br/>
-        <img src="https://api.gitlytics.dev/api/cards/profile-card/demo.svg?theme=default&v=3" alt="Developer Profile Card" width="95%" />
-      </td>
-      <td align="center" width="50%">
-        <b>⭐ Account Highlights 2A-2</b> (Tokyo Night)<br/>
-        <sub>Top repository, primary language share, peak year & longevity badge</sub><br/><br/>
-        <img src="https://api.gitlytics.dev/api/cards/account-highlights/demo.svg?theme=tokyonight&v=3" alt="Account Highlights" width="95%" />
-      </td>
-    </tr>
-    <tr>
-      <td align="center" width="50%">
-        <b>📊 Language Diversity Index</b> (Dracula)<br/>
-        <sub>Radial diversity score gauge, repo share, byte volume & stack capsules</sub><br/><br/>
-        <img src="https://api.gitlytics.dev/api/cards/language-diversity/demo.svg?theme=dracula&v=3" alt="Language Diversity" width="95%" />
-      </td>
-      <td align="center" width="50%">
-        <b>📈 All Contributions</b> (Nord)<br/>
-        <sub>Commits, pull requests, issues & code reviews combined</sub><br/><br/>
-        <img src="https://api.gitlytics.dev/api/cards/combined-contributions/demo.svg?theme=nord&v=3" alt="All Contributions" width="95%" />
-      </td>
-    </tr>
-  </table>
+
+**👤 Flagship Developer Profile Card** (`default` - Obsidian Slate)  
+<sub>Avatar, bio, verified status, 4 metric squircles & top languages bar</sub>
+
+<img src="https://api.gitlytics.dev/api/cards/profile-card/demo.svg?theme=default&v=3" alt="Developer Profile Card" width="720" />
+
+<br/>
+
+**⭐ Account Highlights** (`tokyonight` - Tokyo Night)  
+<sub>Top repository, primary language share, peak year & longevity badge</sub>
+
+<img src="https://api.gitlytics.dev/api/cards/account-highlights/demo.svg?theme=tokyonight&v=3" alt="Account Highlights" width="720" />
+
+<br/>
+
+**📊 Language Diversity Index** (`dracula` - Dracula)  
+<sub>Language diversity score, primary share, byte volume & stack breadth</sub>
+
+<img src="https://api.gitlytics.dev/api/cards/language-diversity/demo.svg?theme=dracula&v=3" alt="Language Diversity" width="720" />
+
+<br/>
+
+**📈 All Contributions** (`nord` - Nord)  
+<sub>Commits, pull requests, issues & code reviews combined</sub>
+
+<img src="https://api.gitlytics.dev/api/cards/combined-contributions/demo.svg?theme=nord&v=3" alt="All Contributions" width="720" />
+
 </div>
 
 ### 🚀 Instant Markdown Embed
@@ -87,7 +90,7 @@ Add any card to your GitHub `README.md` with a single line of Markdown:
 ```
 
 <details>
-<summary><b>🔍 View All 31 Card Slugs (hosted service)</b></summary>
+<summary><b>🔍 View All 50 Card Slugs (hosted service)</b></summary>
 
 <br/>
 
@@ -104,18 +107,18 @@ Add any card to your GitHub `README.md` with a single line of Markdown:
 | **Contributions** | `combined-contributions` | Commits, pull requests, issues & code reviews combined. |
 | **Impact** | `open-source-impact` | Ecosystem reach, community forks, and public issue closure rate. |
 
-*...and 21 more specialized cards available in the [Interactive Embed Studio](https://dashboard.gitlytics.dev/widgets).*
+*...and 40 more specialized cards available in the [Interactive Embed Studio](https://dashboard.gitlytics.dev/widgets).*
 
 </details>
 
 <details>
-<summary><b>🎨 Explore 33 Color Themes</b></summary>
+<summary><b>🎨 Explore 50 Unified Color Themes</b></summary>
 
 <br/>
 
-Supported theme values via `?theme=<name>`:
+Supported theme values via `?theme=<name>` (plus 20 visual variants via `?variant=<name>`):
 
-`default` • `dracula` • `tokyonight` • `nord` • `obsidian-gold` • `synthwave84` • `cyberpunk` • `catppuccin-mocha` • `gruvbox-dark` • `monokai` • `one-dark` • `solarized-dark` • `matrix` • `rose-pine` • `github-dark` • `github-light` • `material-ocean` • `emerald-dark` • `amber-minimal` • `slate-pro` • `ayu-dark` • `horizon` • `shades-of-purple` • `cobalt2` • `night-owl` • `palenight` • `laserwave` • `oceanic-next` • `dimmed` • `high-contrast`
+`default` • `gitlytics-dark` • `dracula` • `tokyonight` • `nord` • `obsidian-gold` • `synthwave84` • `cyberpunk` • `catppuccin-mocha` • `gruvbox-dark` • `monokai` • `one-dark` • `solarized-dark` • `matrix` • `rose-pine` • `github-dark` • `github-light` • `material-ocean` • `emerald-dark` • `amber-minimal` • `slate-pro` • `ayu-dark` • `horizon` • `shades-of-purple` • `cobalt2` • `night-owl` • `palenight` • `laserwave` • `oceanic-next` • `dimmed` • `high-contrast` *(and 19 more in the [Embed Studio](https://dashboard.gitlytics.dev/widgets))*
 
 </details>
 
@@ -123,7 +126,7 @@ Supported theme values via `?theme=<name>`:
 
 ### 🏷️ Hosted Multi-Source Tech Badges & Concept Capsules
 
-> Served by the hosted service at [`api.gitlytics.dev`](https://api.gitlytics.dev) - 181 tech logos plus custom text-only capsules. Not part of the pip package.
+> Served by the hosted service at [`api.gitlytics.dev`](https://api.gitlytics.dev) - 200 verified tech logos plus custom text-only capsules. Not part of the pip package.
 
 Generate clean capsule badges for your tech stack. Supports official brand logos plus **custom text-only capsules** for advanced concepts:
 
@@ -173,6 +176,9 @@ pip install gitlytics
 
 # Full Package (Includes React Dashboard Web Server)
 pip install "gitlytics[dashboard]"
+
+# Optional Local Stdio MCP Extra (for offline CSV vaults + SDK access from AI agents)
+pip install "gitlytics[mcp]"
 ```
 
 ---
@@ -200,6 +206,9 @@ gitlytics dashboard --host 0.0.0.0 --public-bind
 
 # 6. Retrieve cumulative stargazer trajectory for a repository
 gitlytics stars owner/repo --token "ghp_your_token"
+
+# 7. Start the local stdio MCP server (reads GITLYTICS_TOKEN from env; CSV vault works offline)
+gitlytics mcp --data-dir "./data"
 ```
 
 > **CLI output contract:** the traffic table and the success summary go to **stdout**; every error and warning goes to **stderr**. Exit codes are meaningful - `0` success, `1` runtime/upstream failure, `2` bad input - so `gitlytics fetch ... > out.csv` never mixes diagnostics into your data.
@@ -245,6 +254,50 @@ gitlytics.serve_dashboard(
 
 ---
 
+## 🔌 MCP Server & AI Agents
+
+Connect **Antigravity**, **Claude Code**, **Cursor**, **Windsurf**, **VS Code**, **Codex**, and **OpenCode** directly to Gitlytics via the Model Context Protocol (`2025-03-26` Streamable HTTP) or local offline stdio.
+
+### 1. Hosted Cloud MCP (Zero Local Install)
+
+| Endpoint | Auth Mode | Tools Unlocked |
+| :--- | :--- | :--- |
+| **`https://api.gitlytics.dev/mcp-oauth`** | 1-click OAuth 2.1 + PKCE sign-in in IDEs | All 9 tools (5 public widget/profile/star tools + 4 private workspace traffic & AI health tools) |
+| **`https://api.gitlytics.dev/mcp`** | Zero-login public mode (or optional `Bearer glt_live_...` API key for CI/CD) | 5 public tools immediately with zero login; 9 tools when passing an API key from [dashboard.gitlytics.dev/integrations](https://dashboard.gitlytics.dev/integrations) |
+
+```json
+{
+  "mcpServers": {
+    "gitlytics": {
+      "type": "http",
+      "url": "https://api.gitlytics.dev/mcp-oauth"
+    }
+  }
+}
+```
+
+### 2. Local Offline Stdio MCP (Ships in This Package)
+
+Query local `traffic_*.csv` archives and run `fetch`/`sync`/`stars`/`build_widget_embed` without touching Gitlytics Cloud:
+
+```bash
+pip install "gitlytics[mcp]"
+export GITLYTICS_TOKEN="ghp_your_token"   # optional for offline CSV queries
+gitlytics mcp --data-dir ./data
+```
+
+Using Node.js instead? Run the zero-dependency companion: `npx -y @gitlytics/cli mcp --mode local --data-dir ./data`.
+
+### 3. Install Official Agent Skills (`skills.sh`)
+
+```bash
+npx skills add ameyachopade/gitlytics-plugin -g
+```
+
+See the [MCP & AI Agents Docs](https://docs.gitlytics.dev/mcp) for full client configs and tool schemas.
+
+---
+
 ## 📊 Database Schema (24 Daily Metrics)
 
 Gitlytics stores normalized daily records in local CSV files or cloud storage:
@@ -278,23 +331,24 @@ Gitlytics stores normalized daily records in local CSV files or cloud storage:
 
 ---
 
-## 🔗 Ecosystem & Links
+## 🔗 The Gitlytics Ecosystem
 
-- 📦 **[PyPI Package](https://pypi.org/project/gitlytics/)**: Official Python package distribution - the traffic CLI, the Python SDK and the local/self-hosted dashboard.
-- 🌐 **[Live Dashboard](https://dashboard.gitlytics.dev)**: Production Web UI to explore widgets and inspect traffic.
-- 🖼️ **[Hosted Card & Logo API](https://api.gitlytics.dev)**: Serves the 31 SVG profile-card slugs (33 themes) and 181 tech-logo capsules. This is a separate hosted service - it is **not** bundled in the `gitlytics` wheel.
-- 📚 **[Documentation](https://docs.gitlytics.dev)**: Full API guides, card parameters, and self-hosting documentation.
-- 📝 **[Engineering Blog](https://blog.gitlytics.dev)**: Architecture breakdowns, caching strategies, and performance benchmarks.
-- ⚙️ **[Traffic Automation Action](https://github.com/ameyachopade/gitlytics-github-traffic-automation)**: Official GitHub Action companion.
+| Project | Role | Link |
+| :--- | :--- | :--- |
+| **[gitlytics](https://github.com/ameyachopade/gitlytics)** *(this repo)* | Core Python library, CLI (`fetch`, `sync`, `stars`, `dashboard`, `mcp`), and self-hosted local dashboard | [PyPI](https://pypi.org/project/gitlytics/) |
+| **[gitlytics-npm](https://github.com/ameyachopade/gitlytics-npm)** | Zero-dependency Node.js CLI, JS/TS SDK, dual-mode MCP & local dashboard | [npm (`@gitlytics/cli`)](https://www.npmjs.com/package/@gitlytics/cli) |
+| **[gitlytics-plugin](https://github.com/ameyachopade/gitlytics-plugin)** | Official Antigravity plugin, MCP configs & 4 Vercel Agent Skills | [skills.sh](https://skills.sh/ameyachopade/gitlytics-plugin) |
+| **[gitlytics-github-traffic-automation](https://github.com/ameyachopade/gitlytics-github-traffic-automation)** | Composite GitHub Action for automated CSV traffic backups | [GitHub Action](https://github.com/ameyachopade/gitlytics-github-traffic-automation) |
+| **[gitlytics-metadata-pages](https://github.com/ameyachopade/gitlytics-metadata-pages)** | Official Homepage, Docs Hub & Engineering Blog | [gitlytics.dev](https://gitlytics.dev) / [docs.gitlytics.dev](https://docs.gitlytics.dev) |
+| **Gitlytics Cloud Dashboard** | Hosted Analytics Dashboard, Embed Studio & MCP OAuth Consent UI | [dashboard.gitlytics.dev](https://dashboard.gitlytics.dev) |
+| **Gitlytics Hosted API & MCP** | 50-card / 200-logo SVG engine & Streamable HTTP MCP server (`/mcp-oauth` & `/mcp`) | [api.gitlytics.dev](https://api.gitlytics.dev) |
 
 ---
 
-## ⭐ Show Your Support
+## 🤝 Contributing, Security & License
+
+- **Contributing**: See [`CONTRIBUTING.md`](CONTRIBUTING.md) for local setup, test commands, and pull request guidelines.
+- **Security**: See [`SECURITY.md`](SECURITY.md) for local security controls and private vulnerability reporting.
+- **License**: Distributed under **Apache License 2.0 + Commons Clause v1.0**. See [`LICENSE`](LICENSE) for full details.
 
 If Gitlytics has saved your repository data or elevated your profile, please consider giving the repository a **⭐ Star on [GitHub](https://github.com/ameyachopade/gitlytics)** - it helps the project grow!
-
----
-
-## 📄 License & Security
-
-Distributed under **Apache License 2.0 + Commons Clause v1.0**. See [`LICENSE`](LICENSE) for full details and [`SECURITY.md`](SECURITY.md) for our security policy and vulnerability reporting process.

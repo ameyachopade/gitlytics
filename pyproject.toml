@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gitlytics"
-version = "0.8.0"
+version = "0.9.0"
 description = "Monitor and automate your GitHub repository traffic analytics."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -29,7 +29,10 @@ keywords = [
     "traffic",
     "analytics",
     "automation",
-    "cli"
+    "cli",
+    "mcp",
+    "model-context-protocol",
+    "ai-agents",
 ]
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -53,6 +56,9 @@ dashboard = [
     "uvicorn>=0.54.0",
     "python-multipart>=0.0.33"
 ]
+# Optional extra marker for local stdio MCP server (`gitlytics mcp`).
+# Uses zero external runtime dependencies beyond core gitlytics.
+mcp = []
 dev = [
     "pytest>=9.2.0",
     "pytest-cov>=7.1.0",

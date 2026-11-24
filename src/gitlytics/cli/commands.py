@@ -209,3 +209,11 @@ def main(argv=None) -> None:
         _cmd_dashboard(args, explicit_token)
     elif args.command == "stars":
         _cmd_stars(args, token)
+    elif args.command == "mcp":
+        from gitlytics.mcp.server import run_stdio_server
+
+        try:
+            run_stdio_server(data_dir=args.data_dir, api_base=args.api_base)
+        except ValueError as exc:
+            _err(f"Error: {exc}")
+            sys.exit(2)

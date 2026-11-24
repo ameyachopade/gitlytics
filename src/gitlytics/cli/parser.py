@@ -171,4 +171,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     stars_parser.add_argument("-t", "--token", help="GitHub Personal Access Token.")
 
+    # Local stdio MCP server subcommand (privacy-first offline CSV vault + SDK).
+    mcp_parser = subparsers.add_parser(
+        "mcp",
+        help="Start the local Gitlytics MCP server over stdio.",
+    )
+    mcp_parser.add_argument(
+        "--data-dir",
+        default="./data",
+        help="Directory containing local traffic_*.csv archives (default ./data).",
+    )
+    mcp_parser.add_argument(
+        "--api-base",
+        default="https://api.gitlytics.dev",
+        help="Hosted Gitlytics API base URL for widget embed generation.",
+    )
+
     return parser

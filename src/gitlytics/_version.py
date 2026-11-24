@@ -2,4 +2,4 @@
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
 """Single source of truth for the gitlytics package version."""
 
-__version__ = "0.8.0"
+__version__ = "0.9.0"
