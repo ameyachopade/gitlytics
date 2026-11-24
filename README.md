@@ -23,7 +23,7 @@ Bypass GitHub's 14-day traffic cliff, track stargazer trajectories, and launch a
 
 [![Blog](https://api.gitlytics.dev/api/badge/static.svg?label=Blog&message=blog.gitlytics.dev&color=f59e0b)](https://blog.gitlytics.dev)
 [![GitHub Action](https://api.gitlytics.dev/api/badge/tech.svg?slug=githubactions&style=icon_label_value&label=Action&value=Traffic%20Sync)](https://github.com/ameyachopade/gitlytics-github-traffic-automation)
-[![npm](https://api.gitlytics.dev/api/badge/tech.svg?slug=npm&style=icon_label_value&label=npm&value=%40gitlytics%2Fcli)](https://www.npmjs.com/package/@gitlytics/cli)
+[![npm](https://api.gitlytics.dev/api/badge/npm/@gitlytics/cli.svg?label=npm&color=cb3837)](https://www.npmjs.com/package/@gitlytics/cli)
 
 <br/>
 
