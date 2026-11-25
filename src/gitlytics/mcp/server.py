@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any, Optional, TextIO
 from urllib.parse import urlencode
 
+from gitlytics._version import __version__
 from gitlytics.io.rows import is_nullish, read_csv_rows, safe_int
 
 logger = logging.getLogger(__name__)
@@ -531,7 +532,7 @@ class LocalMcpServer:
                 "result": {
                     "protocolVersion": negotiated,
                     "capabilities": {"tools": {"listChanged": False}},
-                    "serverInfo": {"name": "gitlytics", "version": "0.9.0"},
+                    "serverInfo": {"name": "gitlytics", "version": __version__},
                 },
             }
         if method == "ping":
