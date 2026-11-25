@@ -93,6 +93,17 @@ def fetch_traffic(
     token = (token or "").strip() if isinstance(token, str) else token
     metrics = _coerce_metrics(metrics)
 
+    # Zero-pandas fast path for raw tidy records when not printing a table.
+    if (
+        return_format == "records"
+        and not print_table
+        and fetch_traffic_data is _DEFAULT_FETCH_TRAFFIC_DATA
+    ):
+        rows = fetch_traffic_rows(token, repo_name, metrics)
+        if export_public_only:
+            rows = [r for r in rows if not r.get("is_private")]
+        return rows
+
     # Zero-pandas fast path for summary/timeseries JSON queries when not printing a table.
     if (
         return_format in {"timeseries", "summary"}
