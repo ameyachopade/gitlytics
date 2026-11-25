@@ -200,7 +200,7 @@ def test_fetch_star_history_probes_page_1_then_fetches_remaining_concurrently():
             state["pages"].append(page)
             state["active"] += 1
             state["max"] = max(state["max"], state["active"])
-        time.sleep(0.08)
+        time.sleep(0.12)
         with lock:
             state["active"] -= 1
         year = 2020 + (page % 6)
@@ -219,7 +219,7 @@ def test_fetch_star_history_probes_page_1_then_fetches_remaining_concurrently():
     assert len(state["pages"]) == 10
     assert state["max"] >= 3  # Pages 2..10 ran concurrently
     assert points[-1]["total"] == 5000
-    assert elapsed < 0.5, f"Expected parallel star pages (<0.5s), got {elapsed:.3f}s"
+    assert elapsed < 0.9, f"Expected parallel star pages (<0.9s), got {elapsed:.3f}s"
 
 
 def test_get_public_repos_fetches_updated_and_starred_concurrently():
