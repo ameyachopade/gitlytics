@@ -16,7 +16,7 @@ def _uses(path: Path) -> list[str]:
     return USES.findall(path.read_text(encoding="utf-8"))
 
 
-def test_a4_ci_03_every_action_is_pinned_to_a_commit() -> None:
+def test_every_workflow_action_is_pinned_to_a_commit() -> None:
     workflows = sorted(WORKFLOWS_DIR.glob("*.yml"))
     assert workflows, "expected at least one workflow file"
     for workflow in workflows:
@@ -30,14 +30,14 @@ def test_a4_ci_03_every_action_is_pinned_to_a_commit() -> None:
             )
 
 
-def test_a4_ci_03_publish_pins_the_frontend_checkout_and_enables_attestations() -> None:
+def test_publish_workflow_enables_attestations() -> None:
     text = PUBLISH.read_text(encoding="utf-8")
 
     assert "attestations: true" in text
     assert re.search(r"^\s*id-token:\s*write", text, re.MULTILINE)
 
 
-def test_a4_ci_04_publish_has_concurrency_and_tests_the_released_commit() -> None:
+def test_publish_workflow_has_concurrency_and_tests_the_released_commit() -> None:
     text = PUBLISH.read_text(encoding="utf-8")
 
     assert re.search(r"^concurrency:", text, re.MULTILINE)
@@ -55,7 +55,7 @@ def test_a4_ci_04_publish_has_concurrency_and_tests_the_released_commit() -> Non
     assert "actions/checkout@" not in publish_job
 
 
-def test_a4_ci_02_public_surfaces_use_the_live_slug() -> None:
+def test_public_surfaces_use_the_live_slug() -> None:
     # `llms-full.txt` is a hosted-site document; the local library bundle
     # intentionally drops it, so only the README is checked here.
     readme = ROOT / "README.md"

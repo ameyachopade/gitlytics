@@ -52,7 +52,7 @@ def _resp(status: int, *, body=None, headers=None, text: str = ""):
 # Mixed/uppercase CSV headers do not lose rows or crash export
 
 
-def test_af_lib_01_merge_and_export_preserve_mixed_case_headers(tmp_path):
+def test_merge_and_export_preserve_mixed_case_headers(tmp_path):
     csv_path = tmp_path / "traffic_2025-06.csv"
     csv_path.write_text(
         "Date,Repository,Views,Is_Private\n"
@@ -97,7 +97,7 @@ def test_af_lib_01_merge_and_export_preserve_mixed_case_headers(tmp_path):
 # _to_bool handles numpy.integer / numpy.floating scalars
 
 
-def test_af_lib_02_to_bool_handles_numpy_numeric_scalars():
+def test_to_bool_handles_numpy_numeric_scalars():
     assert process._to_bool(np.int64(1)) is True
     assert process._to_bool(np.int32(1)) is True
     assert process._to_bool(np.float32(1.0)) is True
@@ -128,7 +128,7 @@ def test_af_lib_02_to_bool_handles_numpy_numeric_scalars():
 # Simple cross-origin POST rejected on local API routes
 
 
-def test_af_lib_03_cross_origin_simple_post_blocked_on_traffic():
+def test_cross_origin_simple_post_blocked_on_traffic():
     from fastapi.testclient import TestClient
 
     from gitlytics import api
@@ -163,7 +163,7 @@ def test_af_lib_03_cross_origin_simple_post_blocked_on_traffic():
 # Deep stats cached, empty frames not cached, full sha256 keys
 
 
-def test_af_lib_04_deep_stats_cached_and_empty_frame_uncached():
+def test_deep_stats_cached_and_empty_frame_uncached():
     from fastapi.testclient import TestClient
 
     from gitlytics import api
@@ -215,7 +215,7 @@ def test_af_lib_04_deep_stats_cached_and_empty_frame_uncached():
 # Traffic 401/403/429 propagated + partial outage preserves CSV
 
 
-def test_af_lib_06_traffic_errors_propagate_and_partial_live_preserves_csv(tmp_path):
+def test_traffic_errors_propagate_and_partial_live_preserves_csv(tmp_path):
     from fastapi.testclient import TestClient
 
     from gitlytics import api
@@ -270,7 +270,7 @@ def test_af_lib_06_traffic_errors_propagate_and_partial_live_preserves_csv(tmp_p
 # Abuse 403 -> 429; plain 403 != RateLimit; owner/repo validated
 
 
-def test_af_lib_07_error_classification_and_repo_validation():
+def test_error_classification_and_repo_validation():
     abuse = _resp(403, text="You have triggered an abuse detection mechanism")
     with (
         patch("gitlytics.core.client._http_get", side_effect=[abuse, abuse, abuse]),
@@ -297,7 +297,7 @@ def test_af_lib_07_error_classification_and_repo_validation():
 # Non-JSON 200 in validate_token & page-1 soft-error in get_all_repos
 
 
-def test_af_lib_08_validate_token_non_json_and_page1_soft_error():
+def test_validate_token_non_json_and_page1_soft_error():
     bad = _resp(200)
     bad.json.side_effect = ValueError("not json")
     with patch("gitlytics.core.client._http_get", return_value=bad):
@@ -312,7 +312,7 @@ def test_af_lib_08_validate_token_non_json_and_page1_soft_error():
 # Path save_file + .JSON + empty fetch creates no 0-byte file
 
 
-def test_af_lib_09_path_save_file_and_no_empty_file_created(tmp_path):
+def test_path_save_file_and_no_empty_file_created(tmp_path):
     df = pd.DataFrame(
         [{"date": "2026-01-01", "repository": "o/r", "is_private": False, "views": 3}]
     )
@@ -331,7 +331,7 @@ def test_af_lib_09_path_save_file_and_no_empty_file_created(tmp_path):
 # MANIFEST.in, workflows, pyproject, gitignore
 
 
-def test_af_lib_10_and_xrepo_packaging_ci_license():
+def test_packaging_ci_and_license():
     assert (ROOT / "MANIFEST.in").exists()
     manifest = (ROOT / "MANIFEST.in").read_text(encoding="utf-8")
     assert "prune tests" in manifest
@@ -369,7 +369,7 @@ def test_af_lib_10_and_xrepo_packaging_ci_license():
 # Duplicate headers coalesced & pd.NA / pd.NaT nullish
 
 
-def test_af_lib_11_duplicate_csv_headers_and_pandas_na():
+def test_duplicate_csv_headers_and_pandas_na():
     assert process._is_nullish(pd.NA) is True
     assert process._is_nullish(pd.NaT) is True
 
@@ -382,7 +382,7 @@ def test_af_lib_11_duplicate_csv_headers_and_pandas_na():
 # Yearly CSV sorted before monthly CSV
 
 
-def test_af_lib_12_monthly_csv_wins_over_yearly_csv(tmp_path):
+def test_monthly_csv_wins_over_yearly_csv(tmp_path):
     pd.DataFrame(
         [{"date": "2026-11-01", "repository": "o/r", "is_private": False, "views": 1}]
     ).to_csv(tmp_path / "traffic_2026.csv", index=False)
@@ -398,7 +398,7 @@ def test_af_lib_12_monthly_csv_wins_over_yearly_csv(tmp_path):
 # Defensive guards in core.py
 
 
-def test_af_lib_13_core_defensive_guards():
+def test_core_defensive_guards():
     padded = pad_traffic_data({"views": None, "clones": {"clones": [None]}})
     assert len(padded) == 15
 
@@ -417,7 +417,7 @@ def test_af_lib_13_core_defensive_guards():
 # CLI dashboard ImportError, metrics all-unknown, sleep, username
 
 
-def test_af_lib_14_cli_dashboard_and_metrics_and_username(capsys):
+def test_cli_dashboard_and_metrics_and_username(capsys):
     from fastapi.testclient import TestClient
 
     from gitlytics import api, cli
@@ -455,7 +455,7 @@ def test_af_lib_14_cli_dashboard_and_metrics_and_username(capsys):
 # README schema & run_all_functions_check.py
 
 
-def test_af_lib_15_and_16_readme_and_all_functions_harness():
+def test_readme_and_all_functions_harness():
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     assert "24 Daily Metrics" in readme
     assert "`releases`" in readme
@@ -476,7 +476,7 @@ def test_af_lib_15_and_16_readme_and_all_functions_harness():
 # Workspace hygiene, .gitignore coverage, no tracked secrets
 
 
-def test_af_xrepo_08_workspace_hygiene_and_gitignore_coverage():
+def test_workspace_hygiene_and_gitignore_coverage():
     ignore = ROOT / ".gitignore"
     assert ignore.is_file(), "gitlytics has no .gitignore"
     text = ignore.read_text(encoding="utf-8")
@@ -519,7 +519,7 @@ def test_af_xrepo_08_workspace_hygiene_and_gitignore_coverage():
 # Shipped static metadata assets are internally consistent
 
 
-def test_af_lib_05_static_metadata_assets_are_consistent():
+def test_static_metadata_assets_are_consistent():
     static = ROOT / "src" / "gitlytics" / "static"
     index_html = (static / "index.html").read_text(encoding="utf-8")
     headers = (static / "_headers").read_text(encoding="utf-8")
@@ -569,7 +569,7 @@ def test_af_lib_05_static_metadata_assets_are_consistent():
 # Packaged static bundle must be compiled in local mode
 
 
-def test_af_xrepo_01_static_bundle_built_in_local_mode():
+def test_static_bundle_built_in_local_mode():
     assets = ROOT / "src" / "gitlytics" / "static" / "assets"
     entries = sorted(assets.glob("index-*.js"))
     assert entries, "missing static entry bundle"

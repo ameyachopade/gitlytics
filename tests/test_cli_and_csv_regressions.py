@@ -954,7 +954,7 @@ class TestLib17LocalCsp:
 #
 
 
-def test_af2_act_08_public_only_filters_private_repos_in_all_mode(monkeypatch):
+def test_public_only_filters_private_repos_in_all_mode(monkeypatch):
     from gitlytics.core import traffic as core_traffic
 
     repos = [
@@ -973,7 +973,7 @@ def test_af2_act_08_public_only_filters_private_repos_in_all_mode(monkeypatch):
     assert list(df["repository"]) == ["me/public"]
 
 
-def test_af2_act_08_public_only_defaults_off_for_library_callers(monkeypatch):
+def test_public_only_defaults_off_for_library_callers(monkeypatch):
     from gitlytics.core import traffic as core_traffic
 
     repos = [
@@ -992,7 +992,7 @@ def test_af2_act_08_public_only_defaults_off_for_library_callers(monkeypatch):
     assert sorted(df["repository"]) == ["me/private", "me/public"]
 
 
-def test_af2_act_08_explicit_repo_names_are_never_filtered(monkeypatch):
+def test_explicit_repo_names_are_never_filtered(monkeypatch):
     from gitlytics.core import traffic as core_traffic
 
     monkeypatch.setattr(
@@ -1011,7 +1011,7 @@ def test_af2_act_08_explicit_repo_names_are_never_filtered(monkeypatch):
     assert list(df["repository"]) == ["me/explicit"]
 
 
-def test_af2_act_08_sync_plumbs_public_only_to_the_fetcher(monkeypatch):
+def test_sync_plumbs_public_only_to_the_fetcher(monkeypatch):
     seen = {}
 
     def fake_fetch(token, repo_names, metrics, public_only=False):
@@ -1026,7 +1026,7 @@ def test_af2_act_08_sync_plumbs_public_only_to_the_fetcher(monkeypatch):
     assert seen == {"repo_names": None, "public_only": True}
 
 
-def test_af2_xc_04_upload_cap_matches_the_cloud_backend_and_docs():
+def test_upload_cap_matches_the_cloud_backend_and_docs():
     """The library must enforce the same 5 MB ceiling as the cloud backend.
 
     A 25 MB local cap let a backup that worked in `gitlytics dashboard` fail
