@@ -97,7 +97,7 @@ def test_mcp_server_import_defers_pandas_and_numpy():
         "from gitlytics.mcp.server import LocalMcpServer\n"
         "srv = LocalMcpServer()\n"
         "res = srv.handle_message({'jsonrpc': '2.0', 'id': 1, 'method': 'tools/list'})\n"
-        "assert len(res['result']['tools']) == 5\n"
+        "assert len(res['result']['tools']) == 7\n"
         "print(json.dumps({"
         "'pandas': 'pandas' in sys.modules, "
         "'numpy': 'numpy' in sys.modules, "
