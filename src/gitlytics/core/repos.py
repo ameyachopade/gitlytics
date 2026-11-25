@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import contextvars
 import logging
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -33,7 +34,7 @@ def _validate_full_name(full_name: str) -> str:
 
 
 def get_deep_repo_stats(token: str, full_name: str) -> dict:
-    """Fetch commits, open PRs, releases, and community health for one repository."""
+    """Fetch commits, open PRs, releases, and community health concurrently for one repo."""
     full_name = _validate_full_name(full_name)
     headers = client.make_headers(token)
     stats = {
@@ -47,62 +48,92 @@ def get_deep_repo_stats(token: str, full_name: str) -> dict:
         "has_code_of_conduct": None,
     }
 
-    # Try weekly commit stats first; fall back to a 1-call Link-header count if computing (202).
-    ca_data, ca_status = client._safe_get(
-        f"{client.BASE}/repos/{full_name}/stats/commit_activity", headers
-    )
-    if ca_status == 202:
-        logger.info(
-            "Commit activity computing (202) for %s - will populate on next fetch.",
-            full_name,
+    def _fetch_commits() -> dict:
+        # Try weekly commit stats first; fall back to a 1-call Link-header count if computing (202).
+        ca_data, ca_status = client._safe_get(
+            f"{client.BASE}/repos/{full_name}/stats/commit_activity", headers
         )
-    if isinstance(ca_data, list) and ca_data:
-        stats["total_commits"] = sum(week.get("total", 0) for week in ca_data)
-    else:
-        try:
-            stats["total_commits"] = client._count_via_link_header(
-                f"{client.BASE}/repos/{full_name}/commits", headers
+        if ca_status == 202:
+            logger.info(
+                "Commit activity computing (202) for %s - will populate on next fetch.",
+                full_name,
             )
+        if isinstance(ca_data, list) and ca_data:
+            return {"total_commits": sum(week.get("total", 0) for week in ca_data)}
+        try:
+            return {
+                "total_commits": client._count_via_link_header(
+                    f"{client.BASE}/repos/{full_name}/commits", headers
+                )
+            }
         except Exception as exc:
             logger.warning("Could not fetch commit count for %s: %s", full_name, exc)
+            return {}
 
-    try:
-        stats["open_prs"] = client._count_via_link_header(
-            f"{client.BASE}/repos/{full_name}/pulls", headers, {"state": "open"}
-        )
-    except Exception as exc:
-        logger.warning("Could not fetch open PRs for %s: %s", full_name, exc)
-
-    cp_data, _ = client._safe_get(
-        f"{client.BASE}/repos/{full_name}/community/profile", headers
-    )
-    if isinstance(cp_data, dict) and "files" in cp_data:
-        files = cp_data["files"]
-        stats["has_readme"] = bool(files.get("readme"))
-        stats["has_license"] = bool(files.get("license"))
-        stats["has_contributing"] = bool(files.get("contributing"))
-        stats["has_code_of_conduct"] = bool(files.get("code_of_conduct"))
-
-    # Fetch release count and latest release timestamp in a single per_page=1 call.
-    try:
-        rel_url = f"{client.BASE}/repos/{full_name}/releases"
-        r = client._http_get(
-            rel_url, headers=headers, params={"per_page": 1}, timeout=10
-        )
-        if r.status_code == 200:
-            link = r.headers.get("Link", "")
-            match = re.search(r'[?&]page=(\d+)[^>]*>;\s*rel="last"', link)
-            data = r.json()
-            if match:
-                stats["total_releases"] = int(match.group(1))
-            else:
-                stats["total_releases"] = len(data) if isinstance(data, list) else 0
-            if isinstance(data, list) and data:
-                stats["last_release_at"] = data[0].get("published_at") or data[0].get(
-                    "created_at"
+    def _fetch_open_prs() -> dict:
+        try:
+            return {
+                "open_prs": client._count_via_link_header(
+                    f"{client.BASE}/repos/{full_name}/pulls", headers, {"state": "open"}
                 )
-    except Exception as exc:
-        logger.warning("Could not fetch releases for %s: %s", full_name, exc)
+            }
+        except Exception as exc:
+            logger.warning("Could not fetch open PRs for %s: %s", full_name, exc)
+            return {}
+
+    def _fetch_community() -> dict:
+        cp_data, _ = client._safe_get(
+            f"{client.BASE}/repos/{full_name}/community/profile", headers
+        )
+        if isinstance(cp_data, dict) and "files" in cp_data:
+            files = cp_data["files"]
+            return {
+                "has_readme": bool(files.get("readme")),
+                "has_license": bool(files.get("license")),
+                "has_contributing": bool(files.get("contributing")),
+                "has_code_of_conduct": bool(files.get("code_of_conduct")),
+            }
+        return {}
+
+    def _fetch_releases() -> dict:
+        # Fetch release count and latest release timestamp in a single per_page=1 call.
+        out: dict = {}
+        try:
+            rel_url = f"{client.BASE}/repos/{full_name}/releases"
+            r = client._http_get(
+                rel_url, headers=headers, params={"per_page": 1}, timeout=10
+            )
+            if r.status_code == 200:
+                link = r.headers.get("Link", "")
+                match = re.search(r'[?&]page=(\d+)[^>]*>;\s*rel="last"', link)
+                data = r.json()
+                if match:
+                    out["total_releases"] = int(match.group(1))
+                else:
+                    out["total_releases"] = len(data) if isinstance(data, list) else 0
+                if isinstance(data, list) and data:
+                    out["last_release_at"] = data[0].get("published_at") or data[0].get(
+                        "created_at"
+                    )
+        except Exception as exc:
+            logger.warning("Could not fetch releases for %s: %s", full_name, exc)
+        return out
+
+    tasks = (_fetch_commits, _fetch_open_prs, _fetch_community, _fetch_releases)
+    with client._operation_deadline():
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            futures = [
+                pool.submit(contextvars.copy_context().run, fn) for fn in tasks
+            ]
+            for fut in as_completed(futures):
+                try:
+                    patch_dict = fut.result()
+                    if patch_dict:
+                        stats.update(patch_dict)
+                except Exception as exc:
+                    logger.warning(
+                        "Deep repo stats subtask failed for %s: %s", full_name, exc
+                    )
 
     return stats
 

@@ -13,6 +13,9 @@ from gitlytics.io.formatting import print_repo_table
 
 from .client import (
     _BACKOFF_ANNOUNCE_THRESHOLD,
+    _ETAG_CACHE,
+    _ETAG_CACHE_LOCK,
+    _ETAG_CACHE_MAXSIZE,
     _GITHUB_BASE_HEADERS,
     _PER_PAGE,
     _PUBLIC_HEADERS,
@@ -23,6 +26,7 @@ from .client import (
     _active_deadline,
     _announce_backoff,
     _cap_backoff,
+    _clear_etag_cache,
     _count_via_link_header,
     _get_session,
     _http_get,
@@ -54,6 +58,7 @@ from .stars import (
 from .traffic import (
     build_tidy_rows,
     fetch_traffic_data,
+    fetch_traffic_rows,
     get_repo_traffic,
     pad_traffic_data,
 )
@@ -86,6 +91,7 @@ __all__ = [
     "fetch_deep_stats_for_top",
     "fetch_star_history",
     "fetch_traffic_data",
+    "fetch_traffic_rows",
     "format_auth_header",
     "get_all_repos",
     "get_deep_repo_stats",

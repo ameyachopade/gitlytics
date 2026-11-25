@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gitlytics"
-version = "0.9.0"
+version = "0.9.1"
 description = "Monitor and automate your GitHub repository traffic analytics."
 readme = "README.md"
 requires-python = ">=3.11"

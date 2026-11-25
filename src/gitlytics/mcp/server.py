@@ -15,23 +15,79 @@ from __future__ import annotations
 
 import contextlib
 import html
+import importlib
 import json
 import logging
 import os
 import re
 import sys
+import threading
+from collections import OrderedDict
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Optional, TextIO
 from urllib.parse import urlencode
 
-import pandas as pd
-
-from gitlytics.core.stars import fetch_star_history
-from gitlytics.core.validation import validate_owner_repo
-from gitlytics.sdk import fetch_traffic, sync
+from gitlytics.io.rows import is_nullish, read_csv_rows, safe_int
 
 logger = logging.getLogger(__name__)
+
+_LAZY_MCP_DEPS: dict[str, tuple[str, str]] = {
+    "fetch_traffic": ("gitlytics.sdk", "fetch_traffic"),
+    "sync": ("gitlytics.sdk", "sync"),
+    "fetch_star_history": ("gitlytics.core.stars", "fetch_star_history"),
+    "validate_owner_repo": ("gitlytics.core.validation", "validate_owner_repo"),
+}
+
+# Bounded mtime/size-keyed cache for local CSV vault reads (zero pandas).
+_VAULT_CSV_CACHE_MAX = 128
+_VAULT_CSV_CACHE: "OrderedDict[str, tuple[int, int, list[str], list[dict[str, Any]]]]" = (
+    OrderedDict()
+)
+_VAULT_CSV_CACHE_LOCK = threading.Lock()
+
+
+def __getattr__(name: str):
+    """Lazily resolve SDK/core helpers so `gitlytics mcp` never eagerly imports pandas."""
+    target = _LAZY_MCP_DEPS.get(name)
+    if target is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    mod_name, attr_name = target
+    return getattr(importlib.import_module(mod_name), attr_name)
+
+
+def _resolve_dep(name: str):
+    """Return a monkeypatched callable from module globals if present, else import lazily."""
+    patched = globals().get(name)
+    if patched is not None:
+        return patched
+    mod_name, attr_name = _LAZY_MCP_DEPS[name]
+    return getattr(importlib.import_module(mod_name), attr_name)
+
+
+def _read_vault_csv_cached(entry: Path) -> tuple[list[str], list[dict[str, Any]]]:
+    """Read a CSV vault archive via pure-Python rows, caching by (path, mtime_ns, size)."""
+    try:
+        st = entry.stat()
+    except OSError:
+        return read_csv_rows(entry)
+
+    key = str(entry.resolve())
+    with _VAULT_CSV_CACHE_LOCK:
+        cached = _VAULT_CSV_CACHE.get(key)
+        if cached is not None:
+            c_ns, c_size, c_cols, c_rows = cached
+            if c_ns == st.st_mtime_ns and c_size == st.st_size:
+                _VAULT_CSV_CACHE.move_to_end(key)
+                return c_cols, c_rows
+
+    cols, rows = read_csv_rows(entry)
+    with _VAULT_CSV_CACHE_LOCK:
+        _VAULT_CSV_CACHE[key] = (st.st_mtime_ns, st.st_size, cols, rows)
+        _VAULT_CSV_CACHE.move_to_end(key)
+        while len(_VAULT_CSV_CACHE) > _VAULT_CSV_CACHE_MAX:
+            _VAULT_CSV_CACHE.popitem(last=False)
+    return cols, rows
 
 SUPPORTED_PROTOCOL_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
 DEFAULT_PROTOCOL_VERSION = "2025-03-26"
@@ -207,8 +263,9 @@ class LocalMcpServer:
     def _query_csv_vault(self, repo_name: Optional[str] = None, days: int = 90) -> dict[str, Any]:
         safe_days = max(1, min(int(days), 3650))
         if repo_name:
+            validate_owner_repo_fn = _resolve_dep("validate_owner_repo")
             owner, _, repo = repo_name.partition("/")
-            clean_owner, clean_repo = validate_owner_repo(owner, repo)
+            clean_owner, clean_repo = validate_owner_repo_fn(owner, repo)
             repo_filter = f"{clean_owner}/{clean_repo}".lower()
         else:
             repo_filter = None
@@ -222,20 +279,22 @@ class LocalMcpServer:
                 "rows": [],
             }
 
-        frames: list[pd.DataFrame] = []
+        all_rows: list[dict[str, Any]] = []
+        all_cols: set[str] = set()
         files_read = 0
         for entry in sorted(self.data_dir.iterdir()):
             if not entry.is_file() or not _CSV_FILE_RE.match(entry.name):
                 continue
             try:
-                frame = pd.read_csv(entry)
-                if not frame.empty:
-                    frames.append(frame)
+                cols, rows = _read_vault_csv_cached(entry)
+                if rows:
+                    all_cols.update(cols)
+                    all_rows.extend(rows)
                     files_read += 1
             except Exception as exc:
                 logger.warning("Skipping unreadable CSV %s: %s", entry.name, exc)
 
-        if not frames:
+        if not all_rows:
             return {
                 "data_dir": str(self.data_dir),
                 "files_read": files_read,
@@ -244,34 +303,69 @@ class LocalMcpServer:
                 "rows": [],
             }
 
-        df = pd.concat(frames, ignore_index=True)
-        repo_col = "repo" if "repo" in df.columns else ("repository" if "repository" in df.columns else None)
-        if repo_filter and repo_col:
-            df = df[df[repo_col].astype(str).str.lower() == repo_filter]
+        repo_col = "repo" if "repo" in all_cols else ("repository" if "repository" in all_cols else None)
+        has_date = "date" in all_cols
+        cutoff = (
+            (datetime.now(timezone.utc) - timedelta(days=safe_days)).strftime("%Y-%m-%d")
+            if has_date
+            else None
+        )
 
-        if "date" in df.columns:
-            cutoff = (datetime.now(timezone.utc) - timedelta(days=safe_days)).strftime("%Y-%m-%d")
-            df = df[df["date"].astype(str) >= cutoff]
-            df = df.sort_values(by="date", ascending=True)
+        filtered: list[dict[str, Any]] = []
+        for row in all_rows:
+            if repo_filter and repo_col:
+                if str(row.get(repo_col, "")).lower() != repo_filter:
+                    continue
+            if cutoff is not None:
+                if str(row.get("date", "")) < cutoff:
+                    continue
+            filtered.append(row)
 
-        if repo_col and "date" in df.columns:
-            df = df.drop_duplicates(subset=[repo_col, "date"], keep="last")
+        if has_date and len(filtered) > 1:
+            filtered.sort(key=lambda r: str(r.get("date", "")))
 
-        repos_found = sorted(df[repo_col].dropna().astype(str).unique().tolist()) if repo_col else []
+        if repo_col and has_date:
+            deduped_map: dict[tuple[str, str], dict[str, Any]] = {}
+            for row in filtered:
+                key = (str(row.get(repo_col, "")), str(row.get("date", "")))
+                deduped_map[key] = row
+            deduped = list(deduped_map.values())
+        else:
+            deduped = filtered
+
+        repos_set: set[str] = set()
+        total_views = 0
+        total_uv = 0
+        total_clones = 0
+        total_uc = 0
+        for row in deduped:
+            if repo_col:
+                rv = row.get(repo_col)
+                if not is_nullish(rv):
+                    repos_set.add(str(rv))
+            total_views += safe_int(row.get("views"))
+            total_uv += safe_int(row.get("unique_visitors"))
+            total_clones += safe_int(row.get("clones"))
+            total_uc += safe_int(row.get("unique_cloners"))
+
+        repos_found = sorted(repos_set)
         summary = {
-            "total_views": int(df["views"].fillna(0).sum()) if "views" in df.columns else 0,
-            "total_unique_visitors": int(df["unique_visitors"].fillna(0).sum()) if "unique_visitors" in df.columns else 0,
-            "total_clones": int(df["clones"].fillna(0).sum()) if "clones" in df.columns else 0,
-            "total_unique_cloners": int(df["unique_cloners"].fillna(0).sum()) if "unique_cloners" in df.columns else 0,
+            "total_views": total_views,
+            "total_unique_visitors": total_uv,
+            "total_clones": total_clones,
+            "total_unique_cloners": total_uc,
         }
-        rows = df.tail(365).fillna("").to_dict(orient="records")
+        tail_rows = [
+            {k: ("" if is_nullish(v) else v) for k, v in row.items()}
+            for row in deduped[-365:]
+        ]
         return {
             "data_dir": str(self.data_dir),
             "files_read": files_read,
-            "row_count": len(df),
+            "row_count": len(deduped),
             "repositories": repos_found,
             "summary": summary,
-            "rows": rows,
+            "rows": tail_rows,
         }
 
     def _build_widget_embed(self, **kwargs: Any) -> dict[str, Any]:
@@ -321,7 +415,8 @@ class LocalMcpServer:
             path = "/api/badge/static.svg"
             default_alt = f"{lbl}: {msg}"
         elif kind in ("live_badge", "chart"):
-            owner, repo = validate_owner_repo(str(kwargs.get("owner") or ""), str(kwargs.get("repo") or ""))
+            validate_owner_repo_fn = _resolve_dep("validate_owner_repo")
+            owner, repo = validate_owner_repo_fn(str(kwargs.get("owner") or ""), str(kwargs.get("repo") or ""))
             metric = str(kwargs.get("metric") or "views").strip().lower()
             if metric not in ("views", "clones", "stars"):
                 raise ValueError("metric must be 'views', 'clones', or 'stars'.")
@@ -335,7 +430,8 @@ class LocalMcpServer:
             path = f"/api/badge/pypi/{pkg}.svg"
             default_alt = f"PyPI {pkg}"
         elif kind == "star_history":
-            owner, repo = validate_owner_repo(str(kwargs.get("owner") or ""), str(kwargs.get("repo") or ""))
+            validate_owner_repo_fn = _resolve_dep("validate_owner_repo")
+            owner, repo = validate_owner_repo_fn(str(kwargs.get("owner") or ""), str(kwargs.get("repo") or ""))
             params["repos"] = f"{owner}/{repo}"
             path = "/api/star-history-image"
             default_alt = f"{owner}/{repo} star history"
@@ -368,10 +464,12 @@ class LocalMcpServer:
                     token = _require_env_token()
                     repo_name = arguments.get("repo_name")
                     if repo_name:
+                        validate_owner_repo_fn = _resolve_dep("validate_owner_repo")
                         owner, _, repo = str(repo_name).partition("/")
-                        co, cr = validate_owner_repo(owner, repo)
+                        co, cr = validate_owner_repo_fn(owner, repo)
                         repo_name = f"{co}/{cr}"
-                    payload = fetch_traffic(
+                    fetch_traffic_fn = _resolve_dep("fetch_traffic")
+                    payload = fetch_traffic_fn(
                         token=token,
                         repo_name=repo_name,
                         print_table=False,
@@ -384,10 +482,12 @@ class LocalMcpServer:
                     token = _require_env_token()
                     repo_name = arguments.get("repo_name")
                     if repo_name:
+                        validate_owner_repo_fn = _resolve_dep("validate_owner_repo")
                         owner, _, repo = str(repo_name).partition("/")
-                        co, cr = validate_owner_repo(owner, repo)
+                        co, cr = validate_owner_repo_fn(owner, repo)
                         repo_name = f"{co}/{cr}"
-                    rows = sync(
+                    sync_fn = _resolve_dep("sync")
+                    rows = sync_fn(
                         token=token,
                         repo_name=repo_name,
                         data_dir=str(self.data_dir),
@@ -396,11 +496,13 @@ class LocalMcpServer:
                     )
                     return _tool_result({"synced_rows": rows, "data_dir": str(self.data_dir)})
                 if name == "local_star_history":
-                    owner, repo = validate_owner_repo(
+                    validate_owner_repo_fn = _resolve_dep("validate_owner_repo")
+                    owner, repo = validate_owner_repo_fn(
                         str(arguments.get("owner") or ""),
                         str(arguments.get("repo") or ""),
                     )
-                    points = fetch_star_history(owner, repo, token=_resolve_env_token())
+                    fetch_stars_fn = _resolve_dep("fetch_star_history")
+                    points = fetch_stars_fn(owner, repo, token=_resolve_env_token())
                     return _tool_result({"repo": f"{owner}/{repo}", "point_count": len(points), "points": points[-120:]})
                 if name == "local_build_widget_embed":
                     return _tool_result(self._build_widget_embed(**arguments))

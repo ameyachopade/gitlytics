@@ -4,12 +4,14 @@
 
 from __future__ import annotations
 
+import contextvars
 import hashlib
 import logging
 import re
 import threading
 import time
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
 
 from gitlytics.exceptions import (
@@ -101,6 +103,71 @@ def _star_headers(token: str | None) -> dict:
     return headers
 
 
+def _fetch_stargazer_page(
+    owner: str,
+    repo: str,
+    page: int,
+    per_page: int,
+    headers: dict,
+    *,
+    is_small: bool,
+) -> tuple[str, int, list[dict]]:
+    """Fetch and parse one stargazers page, classifying auth, rate-limit, and restriction states."""
+    try:
+        r = client._http_get(
+            f"{client.BASE}/repos/{owner}/{repo}/stargazers",
+            headers=headers,
+            params={"page": page, "per_page": per_page},
+            timeout=10,
+        )
+    except Exception as exc:
+        logger.warning(
+            f"Stargazers fetch failed for {owner}/{repo} page {page}: {exc}"
+        )
+        return "error", -1, []
+
+    if r.status_code == 404:
+        return "restricted", 404, []
+    if r.status_code == 401:
+        raise StarHistoryFetchError(
+            "GitHub token is invalid or expired while reading stargazers (HTTP 401)."
+        )
+    if r.status_code == 403 and not client._is_rate_limited_response(r):
+        return "restricted", 403, []
+    if r.status_code in (403, 429):
+        raise GitHubRateLimitError("GitHub rate limit reached, try again later")
+    if r.status_code != 200:
+        logger.warning(f"Stargazers page {page} returned HTTP {r.status_code}")
+        return "skip", r.status_code, []
+
+    items = r.json()
+    if not isinstance(items, list) or not items:
+        return "ok", 200, []
+
+    page_points: list[dict] = []
+    if is_small:
+        for offset, item in enumerate(items):
+            if not isinstance(item, dict):
+                continue
+            starred_at = item.get("starred_at")
+            if not starred_at:
+                continue
+            star_position = (page - 1) * per_page + offset + 1
+            if star_position >= 1:
+                page_points.append({"date": str(starred_at)[:10], "total": star_position})
+    else:
+        last = items[-1]
+        if isinstance(last, dict):
+            starred_at = last.get("starred_at")
+            if starred_at:
+                star_position = (page - 1) * per_page + len(items)
+                if star_position >= 1:
+                    page_points.append(
+                        {"date": str(starred_at)[:10], "total": star_position}
+                    )
+    return "ok", 200, page_points
+
+
 def fetch_star_history(owner: str, repo: str, token: str | None = None) -> list[dict]:
     """Fetch a cumulative daily star timeline ({date, total}) for a repository."""
     owner, repo = validate_owner_repo(owner, repo)
@@ -136,138 +203,81 @@ def fetch_star_history(owner: str, repo: str, token: str | None = None) -> list[
     try:
         # Walk every page for small repos; sample 10 evenly spaced pages for large ones.
         small_threshold = 200
-        if total_stars <= small_threshold:
-            small_per_page = 30
-            total_pages = (total_stars + small_per_page - 1) // small_per_page
-            for p in range(1, total_pages + 1):
-                try:
-                    r = client._http_get(
-                        f"{client.BASE}/repos/{owner}/{repo}/stargazers",
-                        headers=headers,
-                        params={"page": p, "per_page": small_per_page},
-                        timeout=10,
-                    )
-                except Exception as exc:
-                    logger.warning(
-                        f"Stargazers fetch failed for {owner}/{repo} page {p}: {exc}"
-                    )
-                    continue
-                if r.status_code == 404:
-                    restricted = True
-                    _mark_stargazers_restricted(owner, repo, token)
-                    logger.warning(
-                        "Stargazers endpoint restricted (HTTP 404) for %s/%s; "
-                        "returning an approximate timeline.",
-                        owner,
-                        repo,
-                    )
-                    break
-                if r.status_code == 401:
-                    raise StarHistoryFetchError(
-                        "GitHub token is invalid or expired while reading stargazers (HTTP 401)."
-                    )
-                if r.status_code == 403 and not client._is_rate_limited_response(r):
-                    restricted = True
-                    _mark_stargazers_restricted(owner, repo, token)
-                    logger.warning(
-                        "Stargazers endpoint restricted (HTTP 403) for %s/%s; "
-                        "returning an approximate timeline.",
-                        owner,
-                        repo,
-                    )
-                    break
-                if r.status_code in (403, 429):
-                    raise GitHubRateLimitError(
-                        "GitHub rate limit reached, try again later"
-                    )
-                if r.status_code != 200:
-                    logger.warning(f"Stargazers page {p} returned HTTP {r.status_code}")
-                    continue
-                items = r.json()
-                if not isinstance(items, list):
-                    continue
-                for offset, item in enumerate(items):
-                    if not isinstance(item, dict):
-                        continue
-                    starred_at = item.get("starred_at")
-                    if not starred_at:
-                        continue
-                    star_position = (p - 1) * small_per_page + offset + 1
-                    if star_position >= 1:
-                        points.append(
-                            {"date": str(starred_at)[:10], "total": star_position}
-                        )
+        is_small = total_stars <= small_threshold
+        if is_small:
+            page_size = 30
+            total_pages = (total_stars + page_size - 1) // page_size
+            pages_to_fetch = list(range(1, total_pages + 1))
         else:
+            page_size = per_page
             max_pages = 400
-            total_pages = min((total_stars + per_page - 1) // per_page, max_pages)
+            total_pages = min((total_stars + page_size - 1) // page_size, max_pages)
             sample_count = 10
             if total_pages <= sample_count:
-                sampled_pages = list(range(1, total_pages + 1))
+                pages_to_fetch = list(range(1, total_pages + 1))
             else:
-                sampled_pages = sorted(
+                pages_to_fetch = sorted(
                     {
                         1 + round(i * (total_pages - 1) / (sample_count - 1))
                         for i in range(sample_count)
                     }
                 )
-            for p in sampled_pages:
-                try:
-                    r = client._http_get(
-                        f"{client.BASE}/repos/{owner}/{repo}/stargazers",
-                        headers=headers,
-                        params={"page": p, "per_page": per_page},
-                        timeout=10,
-                    )
-                except Exception as exc:
-                    logger.warning(
-                        f"Stargazers fetch failed for {owner}/{repo} page {p}: {exc}"
-                    )
-                    continue
-                if r.status_code == 404:
-                    restricted = True
-                    _mark_stargazers_restricted(owner, repo, token)
-                    logger.warning(
-                        "Stargazers endpoint restricted (HTTP 404) for %s/%s; "
-                        "returning an approximate timeline.",
-                        owner,
-                        repo,
-                    )
-                    break
-                if r.status_code == 401:
-                    raise StarHistoryFetchError(
-                        "GitHub token is invalid or expired while reading stargazers (HTTP 401)."
-                    )
-                if r.status_code == 403 and not client._is_rate_limited_response(r):
-                    restricted = True
-                    _mark_stargazers_restricted(owner, repo, token)
-                    logger.warning(
-                        "Stargazers endpoint restricted (HTTP 403) for %s/%s; "
-                        "returning an approximate timeline.",
-                        owner,
-                        repo,
-                    )
-                    break
-                if r.status_code in (403, 429):
-                    raise GitHubRateLimitError(
-                        "GitHub rate limit reached, try again later"
-                    )
-                if r.status_code != 200:
-                    logger.warning(f"Stargazers page {p} returned HTTP {r.status_code}")
-                    continue
-                items = r.json()
-                if not isinstance(items, list) or not items:
-                    continue
-                last = items[-1]
-                if not isinstance(last, dict):
-                    continue
-                starred_at = last.get("starred_at")
-                if not starred_at:
-                    continue
-                star_position = (p - 1) * per_page + len(items)
-                if star_position >= 1:
-                    points.append(
-                        {"date": str(starred_at)[:10], "total": star_position}
-                    )
+
+        if pages_to_fetch:
+            # Probe page 1 synchronously so 404/403 restrictions abort in a single call.
+            first_page = pages_to_fetch[0]
+            first_kind, first_code, first_points = _fetch_stargazer_page(
+                owner, repo, first_page, page_size, headers, is_small=is_small
+            )
+            if first_kind == "restricted":
+                restricted = True
+                _mark_stargazers_restricted(owner, repo, token)
+                logger.warning(
+                    "Stargazers endpoint restricted (HTTP %s) for %s/%s; "
+                    "returning an approximate timeline.",
+                    first_code,
+                    owner,
+                    repo,
+                )
+            else:
+                points.extend(first_points)
+                remaining_pages = pages_to_fetch[1:]
+                if remaining_pages:
+                    page_results: dict[int, tuple[str, int, list[dict]]] = {}
+                    with ThreadPoolExecutor(
+                        max_workers=min(5, len(remaining_pages))
+                    ) as pool:
+                        future_map = {
+                            pool.submit(
+                                contextvars.copy_context().run,
+                                _fetch_stargazer_page,
+                                owner,
+                                repo,
+                                page_num,
+                                page_size,
+                                headers,
+                                is_small=is_small,
+                            ): page_num
+                            for page_num in remaining_pages
+                        }
+                        for fut in as_completed(future_map):
+                            page_num = future_map[fut]
+                            page_results[page_num] = fut.result()
+
+                    for page_num in remaining_pages:
+                        kind, code, page_points = page_results[page_num]
+                        if kind == "restricted":
+                            restricted = True
+                            _mark_stargazers_restricted(owner, repo, token)
+                            logger.warning(
+                                "Stargazers endpoint restricted (HTTP %s) for %s/%s; "
+                                "returning an approximate timeline.",
+                                code,
+                                owner,
+                                repo,
+                            )
+                            break
+                        points.extend(page_points)
     except (GitHubRateLimitError, StargazersRestrictedError, StarHistoryFetchError):
         raise
     except Exception as exc:

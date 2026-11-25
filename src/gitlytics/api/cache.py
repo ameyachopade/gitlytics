@@ -9,8 +9,10 @@ import threading as _threading
 import time as _time
 from collections import OrderedDict
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import pandas as pd
+if TYPE_CHECKING:
+    import pandas as pd
 
 from gitlytics.core.repos import fetch_deep_stats_for_top
 from gitlytics.core.traffic import fetch_traffic_data
@@ -69,12 +71,24 @@ def _validate_token_cached(token: str) -> tuple[bool, str]:
     return valid, username
 
 
+def __getattr__(name: str):
+    """Lazily expose `pd` for callers/tests patching `gitlytics.api.cache.pd`."""
+    if name == "pd":
+        import pandas as _pd
+
+        globals()["pd"] = _pd
+        return _pd
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
 def _read_csv_cached(path: Path) -> pd.DataFrame:
     """Read and normalize a CSV archive file, reusing cached frames when unchanged on disk."""
+    _pd = globals().get("pd") or __getattr__("pd")
+
     try:
         st = path.stat()
     except OSError:
-        return _normalize_csv_header(pd.read_csv(path))
+        return _normalize_csv_header(_pd.read_csv(path))
 
     key = (str(path.resolve()), st.st_mtime)
     with _CSV_CACHE_LOCK:
@@ -83,11 +97,11 @@ def _read_csv_cached(path: Path) -> pd.DataFrame:
             c_ns, c_size, c_df = cached
             if c_ns == st.st_mtime_ns and c_size == st.st_size:
                 _CSV_CACHE.move_to_end(key)
-                return c_df.copy()
+                return c_df
 
-    df = _normalize_csv_header(pd.read_csv(path))
+    df = _normalize_csv_header(_pd.read_csv(path))
     with _CSV_CACHE_LOCK:
-        _CSV_CACHE[key] = (st.st_mtime_ns, st.st_size, df.copy())
+        _CSV_CACHE[key] = (st.st_mtime_ns, st.st_size, df)
         _CSV_CACHE.move_to_end(key)
         while len(_CSV_CACHE) > 128:
             _CSV_CACHE.popitem(last=False)

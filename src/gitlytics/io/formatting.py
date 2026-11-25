@@ -4,11 +4,11 @@
 
 from __future__ import annotations
 
-import pandas as pd
 
-
-def _col_sum(frame: pd.DataFrame, col: str) -> int:
+def _col_sum(frame, col: str) -> int:
     """Sum a column cleanly even when values arrive as formatted strings or inf/NaN."""
+    import pandas as pd
+
     if col not in frame.columns:
         return 0
     series = frame[col]
@@ -22,8 +22,10 @@ def _col_sum(frame: pd.DataFrame, col: str) -> int:
     return int(numeric.sum())
 
 
-def _col_last(frame: pd.DataFrame, col: str) -> int:
+def _col_last(frame, col: str) -> int:
     """Return the latest finite integer value from a column, or 0 if empty."""
+    import pandas as pd
+
     if col not in frame.columns:
         return 0
     series = frame[col]
@@ -37,8 +39,10 @@ def _col_last(frame: pd.DataFrame, col: str) -> int:
     return int(numeric.iloc[-1]) if not numeric.empty else 0
 
 
-def print_repo_table(df: pd.DataFrame) -> None:
+def print_repo_table(df) -> None:
     """Print an aligned ASCII summary table of repository traffic to stdout."""
+    import pandas as pd
+
     if df.empty:
         print("No data to display.")
         return

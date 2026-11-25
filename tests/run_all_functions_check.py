@@ -286,13 +286,14 @@ run_test("gitlytics.core", "_count_via_link_header", test_count_via_link_header)
 
 
 def test_get_deep_repo_stats():
-    with patch(
-        "gitlytics.core.client._safe_get",
-        side_effect=[
-            ([{"total": 100}], 200),  # commit activity
-            ({"files": {"readme": {"url": "x"}}}, 200),  # community profile
-        ],
-    ):
+    def _fake_safe_get(url, headers, params=None):
+        if url.endswith("/stats/commit_activity"):
+            return ([{"total": 100}], 200)
+        if url.endswith("/community/profile"):
+            return ({"files": {"readme": {"url": "x"}}}, 200)
+        return ({}, 404)
+
+    with patch("gitlytics.core.client._safe_get", side_effect=_fake_safe_get):
         with patch("gitlytics.core.client._count_via_link_header", return_value=3):
             with patch("gitlytics.core.client._http_get") as mock_rel:
                 mock_rel.return_value.status_code = 200
@@ -369,15 +370,14 @@ run_test("gitlytics.core", "fetch_star_history", test_fetch_star_history)
 
 def test_get_repo_traffic():
     # Mock _count_via_link_header so this offline harness never hits the network.
-    with patch(
-        "gitlytics.core.client._safe_get",
-        side_effect=[
-            ({"views": []}, 200),
-            ({"clones": []}, 200),
-            ([], 200),
-            ([], 200),
-        ],
-    ):
+    def _fake_safe_get(url, headers, params=None):
+        if url.endswith("/traffic/views"):
+            return ({"views": []}, 200)
+        if url.endswith("/traffic/clones"):
+            return ({"clones": []}, 200)
+        return ([], 200)
+
+    with patch("gitlytics.core.client._safe_get", side_effect=_fake_safe_get):
         with patch("gitlytics.core.client._count_via_link_header", return_value=0):
             tr = gitlytics.core.get_repo_traffic("tok", "u/r")
             assert "views" in tr and "clones" in tr

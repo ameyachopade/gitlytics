@@ -10,12 +10,14 @@ import sys
 from pathlib import Path
 
 from gitlytics.automation.scheduler import run_sync
-from gitlytics.core.traffic import fetch_traffic_data
+from gitlytics.core.traffic import fetch_traffic_data, fetch_traffic_rows
 from gitlytics.io.atomic import _write_csv_safely, _write_json_safely
 from gitlytics.io.formatting import print_repo_table
 from gitlytics.io.payloads import _filter_public_only_df, build_json_payload
+from gitlytics.io.rows import build_json_payload_rows
 
 logger = logging.getLogger(__name__)
+_DEFAULT_FETCH_TRAFFIC_DATA = fetch_traffic_data
 
 _VALID_METRICS = {
     "views",
@@ -90,6 +92,29 @@ def fetch_traffic(
     """
     token = (token or "").strip() if isinstance(token, str) else token
     metrics = _coerce_metrics(metrics)
+
+    # Zero-pandas fast path for summary/timeseries JSON queries when not printing a table.
+    if (
+        return_format in {"timeseries", "summary"}
+        and not print_table
+        and fetch_traffic_data is _DEFAULT_FETCH_TRAFFIC_DATA
+    ):
+        rows = fetch_traffic_rows(token, repo_name, metrics)
+        payload = build_json_payload_rows(
+            rows,
+            return_format=return_format,
+            export_public_only=export_public_only,
+        )
+        if save_file:
+            if not payload.get("repositories") and not allow_empty_save:
+                if Path(save_file).exists():
+                    raise ValueError(
+                        f"Refusing to overwrite existing file {str(save_file)!r} with an "
+                        "empty result. Pass allow_empty_save=True to permit this."
+                    )
+            else:
+                _write_json_safely(str(save_file), payload)
+        return payload
 
     df = fetch_traffic_data(token, repo_name, metrics)
 

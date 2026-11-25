@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .routes import router
@@ -15,6 +16,7 @@ from .security import _ALLOWED_ORIGINS, STATIC_DIR, _SecurityHeadersMiddleware
 def create_app() -> FastAPI:
     """Create and configure the local Gitlytics dashboard FastAPI app."""
     application = FastAPI(title="GitHub Traffic API")
+    application.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=4)
     application.add_middleware(
         CORSMiddleware,
         allow_origins=_ALLOWED_ORIGINS,

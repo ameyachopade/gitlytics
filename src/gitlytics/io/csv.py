@@ -6,56 +6,30 @@ from __future__ import annotations
 
 import logging
 
-import pandas as pd
-
 from .payloads import _coerce_numeric_columns, _to_bool
+from .rows import (
+    _LEGACY_COLUMN_MAP,
+    merge_schema as _merge_schema,
+    normalize_field as _normalize_field,
+)
 
 logger = logging.getLogger(__name__)
 
-# Maps legacy display headers to canonical snake_case column names.
-_LEGACY_COLUMN_MAP = {
-    "repository": "repository",
-    "repo_name": "repository",
-    "total views": "views",
-    "unique visitors": "unique_visitors",
-    "total clones": "clones",
-    "unique cloners": "unique_cloners",
-    "stars": "stars",
-    "forks": "forks",
-}
 
-
-def _normalize_field(name: str) -> str:
-    """Strip BOMs, trim whitespace, and lower-case a single CSV column header."""
-    if not isinstance(name, str):
-        return ""
-    return name.lstrip("\ufeff").strip().lower()
-
-
-def _merge_schema(existing_fields: list, new_fields: list) -> list:
-    """Keep existing CSV column order while appending newly introduced columns."""
-    norm_existing = [_normalize_field(f) for f in existing_fields]
-    merged_norm = list(norm_existing)
-    merged_names = list(existing_fields)
-    for col in new_fields:
-        norm = _normalize_field(col)
-        if norm and norm not in merged_norm:
-            logger.info(f"Schema upgrade: adding new column '{col}' to existing CSV.")
-            merged_norm.append(norm)
-            merged_names.append(col)
-    return merged_names
-
-
-def _parse_date_column(series: pd.Series) -> pd.Series:
+def _parse_date_column(series):
     """Parse mixed date formats safely so valid rows are never turned into NaT."""
+    import pandas as pd
+
     try:
         return pd.to_datetime(series, errors="coerce", format="mixed")
     except (ValueError, TypeError):
         return pd.to_datetime(series, errors="coerce")
 
 
-def normalize_csv_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+def normalize_csv_dataframe(df):
     """Normalize CSV headers to canonical lowercase names and coalesce duplicates."""
+    import pandas as pd
+
     frame = df.copy()
     frame.columns = [_normalize_field(str(c)) for c in frame.columns]
     frame.columns = [_LEGACY_COLUMN_MAP.get(c, c) for c in frame.columns]
@@ -79,8 +53,10 @@ _MAX_UPLOAD_ROWS = 50_000
 _MAX_UPLOAD_REPOS = 2_000
 
 
-def process_uploaded_csv(uploaded_file) -> pd.DataFrame:
+def process_uploaded_csv(uploaded_file):
     """Read an uploaded CSV file and normalize its headers, booleans, and numeric columns."""
+    import pandas as pd
+
     raw_df = normalize_csv_dataframe(
         pd.read_csv(uploaded_file, nrows=_MAX_UPLOAD_ROWS + 1)
     )

@@ -4,7 +4,9 @@
 
 from __future__ import annotations
 
+import contextvars
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 import requests
 
@@ -191,8 +193,23 @@ def get_public_repos(
     """Merge a user's recently updated and most-starred public repos, sorted by stars."""
     username = validate_github_username(username)
     per_page = min(50, max_repos) if max_repos > 0 else 50
-    recent = _fetch_public_repos_by_updated(username, per_page=per_page, token=token)
-    starred = _fetch_public_repos_by_stars(username, per_page=per_page, token=token)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        recent_fut = pool.submit(
+            contextvars.copy_context().run,
+            _fetch_public_repos_by_updated,
+            username,
+            per_page=per_page,
+            token=token,
+        )
+        starred_fut = pool.submit(
+            contextvars.copy_context().run,
+            _fetch_public_repos_by_stars,
+            username,
+            per_page=per_page,
+            token=token,
+        )
+        recent = recent_fut.result()
+        starred = starred_fut.result()
 
     seen: set = set()
     merged = []

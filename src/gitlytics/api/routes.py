@@ -10,7 +10,6 @@ import re
 import tempfile
 from pathlib import Path
 
-import pandas as pd
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
 
@@ -196,6 +195,8 @@ def get_traffic(request: Request, token: str = Body("", embed=True)):
                     continue
                 dfs.append(frame)
 
+    import pandas as pd
+
     try:
         live_df = cache._cached_live_traffic(active_token)
     except TokenExpiredError:
@@ -348,6 +349,8 @@ async def upload_csv(
                         detail=f"CSV too large. Maximum size is {_MAX_UPLOAD_BYTES // (1024 * 1024)} MB.",
                     )
                 out.write(chunk)
+        import pandas as pd
+
         df = process_uploaded_csv(tmp_path)
         df = df.replace([float("inf"), float("-inf")], None).where(pd.notnull(df), None)
         return build_react_payload(df, deep_stats=None)

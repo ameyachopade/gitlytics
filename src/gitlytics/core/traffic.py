@@ -1,6 +1,6 @@
 # Copyright (c) 2026 Ameya Sanjay Chopade
 # SPDX-License-Identifier: LicenseRef-Apache-2.0-with-Commons-Clause
-"""GitHub traffic API fetching, 15-day zero-padding, and tidy DataFrame building."""
+"""GitHub traffic API fetching, 15-day zero-padding, and tidy row/DataFrame building."""
 
 from __future__ import annotations
 
@@ -9,8 +9,7 @@ import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, timezone
-
-import pandas as pd
+from typing import Any
 
 from gitlytics.exceptions import GitHubRateLimitError, TokenExpiredError
 
@@ -21,49 +20,117 @@ logger = logging.getLogger(__name__)
 
 
 def get_repo_traffic(token: str, full_name: str, metrics: list = None) -> dict:
-    """Fetch views, clones, referrers, paths, and release counts for one repository."""
+    """Fetch views, clones, referrers, paths, and release counts concurrently for one repo."""
     full_name = _validate_full_name(full_name)
     headers = client.make_headers(token)
 
-    views, clones, refs, paths = {}, {}, [], []
     wants_views = metrics is None or "views" in metrics
     wants_clones = metrics is None or "clones" in metrics
+    wants_refs = metrics is None or "referrers" in metrics
+    wants_paths = metrics is None or "paths" in metrics
+    wants_releases = metrics is None or "releases" in metrics
+
+    views: Any = {}
+    clones: Any = {}
+    refs: Any = []
+    paths: Any = []
     views_ok = True
     clones_ok = True
     releases_count = 0
-    traffic_statuses: list[int] = []
+    v_status: int | None = None
+    c_status: int | None = None
 
-    with client._operation_deadline():
-        if wants_views:
-            views, v_status = client._safe_get(
-                f"{client.BASE}/repos/{full_name}/traffic/views", headers
-            )
-            traffic_statuses.append(v_status)
-            views_ok = v_status == 200 and isinstance(views, dict) and "views" in views
-        if wants_clones:
-            clones, c_status = client._safe_get(
-                f"{client.BASE}/repos/{full_name}/traffic/clones", headers
-            )
-            traffic_statuses.append(c_status)
-            clones_ok = (
-                c_status == 200 and isinstance(clones, dict) and "clones" in clones
-            )
-        if metrics is None or "referrers" in metrics:
-            refs, _ = client._safe_get(
-                f"{client.BASE}/repos/{full_name}/traffic/popular/referrers", headers
-            )
-        if metrics is None or "paths" in metrics:
-            paths, _ = client._safe_get(
-                f"{client.BASE}/repos/{full_name}/traffic/popular/paths", headers
-            )
-
-    if metrics is None or "releases" in metrics:
+    def _fetch_releases() -> int:
         try:
-            releases_count = client._count_via_link_header(
+            return client._count_via_link_header(
                 f"{client.BASE}/repos/{full_name}/releases", headers
             )
         except Exception as exc:
             logger.warning("Could not fetch releases count for %s: %s", full_name, exc)
+            return 0
+
+    tasks: list[tuple[str, Any]] = []
+    if wants_views:
+        tasks.append(
+            (
+                "views",
+                lambda: client._safe_get(
+                    f"{client.BASE}/repos/{full_name}/traffic/views", headers
+                ),
+            )
+        )
+    if wants_clones:
+        tasks.append(
+            (
+                "clones",
+                lambda: client._safe_get(
+                    f"{client.BASE}/repos/{full_name}/traffic/clones", headers
+                ),
+            )
+        )
+    if wants_refs:
+        tasks.append(
+            (
+                "referrers",
+                lambda: client._safe_get(
+                    f"{client.BASE}/repos/{full_name}/traffic/popular/referrers",
+                    headers,
+                ),
+            )
+        )
+    if wants_paths:
+        tasks.append(
+            (
+                "paths",
+                lambda: client._safe_get(
+                    f"{client.BASE}/repos/{full_name}/traffic/popular/paths", headers
+                ),
+            )
+        )
+    if wants_releases:
+        tasks.append(("releases", _fetch_releases))
+
+    results: dict[str, Any] = {}
+    with client._operation_deadline():
+        if len(tasks) == 1:
+            name, fn = tasks[0]
+            results[name] = fn()
+        elif len(tasks) > 1:
+            with ThreadPoolExecutor(max_workers=min(5, len(tasks))) as pool:
+                future_map = {
+                    pool.submit(contextvars.copy_context().run, fn): name
+                    for name, fn in tasks
+                }
+                for fut in as_completed(future_map):
+                    name = future_map[fut]
+                    try:
+                        results[name] = fut.result()
+                    except Exception as exc:
+                        logger.warning(
+                            "Traffic endpoint '%s' failed for %s: %s",
+                            name,
+                            full_name,
+                            exc,
+                        )
+
+    if wants_views:
+        views, v_status = results.get("views", ({}, -1))
+        views_ok = v_status == 200 and isinstance(views, dict) and "views" in views
+    if wants_clones:
+        clones, c_status = results.get("clones", ({}, -1))
+        clones_ok = c_status == 200 and isinstance(clones, dict) and "clones" in clones
+    if wants_refs:
+        refs, _ = results.get("referrers", ([], -1))
+    if wants_paths:
+        paths, _ = results.get("paths", ([], -1))
+    if wants_releases:
+        releases_count = int(results.get("releases", 0) or 0)
+
+    traffic_statuses: list[int] = []
+    if v_status is not None:
+        traffic_statuses.append(v_status)
+    if c_status is not None:
+        traffic_statuses.append(c_status)
 
     # Mark the fetch usable only when at least one requested traffic endpoint succeeded.
     fetch_ok = (
@@ -182,74 +249,129 @@ def build_tidy_rows(repo: dict, traffic: dict, metrics: list = None) -> list[dic
     top_path_views = paths[0].get("count", 0) if paths else 0
     top_path_uniques = paths[0].get("uniques", 0) if paths else 0
 
+    # Hoist metric checks, repo metadata, and JSON serialization out of the 15-day loop.
+    full_name = repo["full_name"]
+    is_private = repo.get("private", False)
+    want_views = (metrics is None or "views" in metrics) and views_ok
+    want_clones = (metrics is None or "clones" in metrics) and clones_ok
+    want_stars = metrics is None or "stars" in metrics
+    want_forks = metrics is None or "forks" in metrics
+    want_releases = metrics is None or "releases" in metrics
+    want_language = metrics is None or "language" in metrics
+    want_topics = metrics is None or "topics" in metrics
+    want_watchers = metrics is None or "watchers_count" in metrics
+    want_pushed = metrics is None or "pushed_at" in metrics
+    want_created = metrics is None or "created_at" in metrics
+    want_issues = metrics is None or "open_issues_count" in metrics
+    want_refs = metrics is None or "referrers" in metrics
+    want_paths = metrics is None or "paths" in metrics
+
+    stars = repo.get("stargazers_count", 0) if want_stars else 0
+    forks = repo.get("forks_count", 0) if want_forks else 0
+    releases = traffic.get("releases", 0) if want_releases else 0
+    language = repo.get("language") if want_language else None
+    topics_json = json.dumps(repo.get("topics", [])) if want_topics else None
+    watchers = repo.get("watchers_count", 0) if want_watchers else 0
+    pushed_at = repo.get("pushed_at", "") if want_pushed else ""
+    created_at = repo.get("created_at", "") if want_created else ""
+    open_issues = repo.get("open_issues_count", 0) if want_issues else 0
+    refs_json = json.dumps(refs) if want_refs else None
+    paths_json = json.dumps(paths) if want_paths else None
+
     rows = []
     for day in padded:
-        row = {
+        row: dict[str, Any] = {
             "date": day["date"],
-            "repository": repo["full_name"],
-            "is_private": repo.get("private", False),
+            "repository": full_name,
+            "is_private": is_private,
         }
-        if (metrics is None or "views" in metrics) and views_ok:
+        if want_views:
             row["views"] = day["views"]
             row["unique_visitors"] = day["unique_visitors"]
-        if (metrics is None or "clones" in metrics) and clones_ok:
+        if want_clones:
             row["clones"] = day["clones"]
             row["unique_cloners"] = day["unique_cloners"]
-        if metrics is None or "stars" in metrics:
-            row["stars"] = repo.get("stargazers_count", 0)
-        if metrics is None or "forks" in metrics:
-            row["forks"] = repo.get("forks_count", 0)
-        if metrics is None or "releases" in metrics:
-            row["releases"] = traffic.get("releases", 0)
-        if metrics is None or "language" in metrics:
-            row["language"] = repo.get("language")
-        if metrics is None or "topics" in metrics:
-            row["topics"] = json.dumps(repo.get("topics", []))
-        if metrics is None or "watchers_count" in metrics:
-            row["watchers_count"] = repo.get("watchers_count", 0)
-        if metrics is None or "pushed_at" in metrics:
-            row["pushed_at"] = repo.get("pushed_at", "")
-        if metrics is None or "created_at" in metrics:
-            row["created_at"] = repo.get("created_at", "")
-        if metrics is None or "open_issues_count" in metrics:
-            row["open_issues_count"] = repo.get("open_issues_count", 0)
+        if want_stars:
+            row["stars"] = stars
+        if want_forks:
+            row["forks"] = forks
+        if want_releases:
+            row["releases"] = releases
+        if want_language:
+            row["language"] = language
+        if want_topics:
+            row["topics"] = topics_json
+        if want_watchers:
+            row["watchers_count"] = watchers
+        if want_pushed:
+            row["pushed_at"] = pushed_at
+        if want_created:
+            row["created_at"] = created_at
+        if want_issues:
+            row["open_issues_count"] = open_issues
 
-        if metrics is None or "referrers" in metrics:
+        if want_refs:
             row["top_referrer"] = top_ref
             row["top_referrer_views"] = top_ref_views
             row["top_referrer_uniques"] = top_ref_uniques
-            row["_raw_referrers"] = json.dumps(refs)
+            row["_raw_referrers"] = refs_json
 
-        if metrics is None or "paths" in metrics:
+        if want_paths:
             row["top_path"] = top_path
             row["top_path_views"] = top_path_views
             row["top_path_uniques"] = top_path_uniques
-            row["_raw_paths"] = json.dumps(paths)
+            row["_raw_paths"] = paths_json
 
         rows.append(row)
     return rows
 
 
-def fetch_traffic_data(
+def fetch_traffic_rows(
     token: str,
     repo_names=None,
-    metrics: list = None,
+    metrics: list | None = None,
     public_only: bool = False,
-) -> pd.DataFrame:
-    """Fetch traffic across one, selected, or all repositories into a tidy DataFrame."""
+) -> list[dict]:
+    """Fetch traffic across one, selected, or all repos into plain tidy row dicts (zero pandas)."""
     # Share one operation deadline across repo discovery and all concurrent workers.
     with client._operation_deadline():
         if repo_names is not None:
             if isinstance(repo_names, str):
                 repo_names = [repo_names]
+            else:
+                repo_names = list(repo_names)
             if len(repo_names) == 0:
-                return pd.DataFrame()
-            repos = []
-            for name in repo_names:
+                return []
+            if len(repo_names) == 1:
+                repos = []
                 try:
-                    repos.append(get_single_repo(token, name))
+                    repos.append(get_single_repo(token, repo_names[0]))
                 except ValueError as exc:
-                    logger.warning("Skipping unknown repo '%s': %s", name, exc)
+                    logger.warning("Skipping unknown repo '%s': %s", repo_names[0], exc)
+            else:
+                def _lookup_one(idx_name: tuple[int, str]):
+                    idx, name = idx_name
+                    try:
+                        return idx, get_single_repo(token, name)
+                    except ValueError as exc:
+                        logger.warning("Skipping unknown repo '%s': %s", name, exc)
+                        return idx, None
+
+                ordered_repos: list[tuple[int, dict | None]] = []
+                with ThreadPoolExecutor(max_workers=min(5, len(repo_names))) as pool:
+                    futures = [
+                        pool.submit(
+                            contextvars.copy_context().run, _lookup_one, (i, n)
+                        )
+                        for i, n in enumerate(repo_names)
+                    ]
+                    for fut in as_completed(futures):
+                        ordered_repos.append(fut.result())
+                repos = [
+                    r
+                    for _, r in sorted(ordered_repos, key=lambda x: x[0])
+                    if r is not None
+                ]
         else:
             repos = get_all_repos(token)
             # Drop private repos before fetching traffic when public_only is enabled.
@@ -257,9 +379,9 @@ def fetch_traffic_data(
                 repos = [r for r in repos if not r.get("private", False)]
 
         if not repos:
-            return pd.DataFrame()
+            return []
 
-        all_rows = []
+        all_rows: list[dict] = []
         traffic_results: list[dict] = []
 
         if len(repos) <= 1:
@@ -269,14 +391,14 @@ def fetch_traffic_data(
                     traffic_results.append(traffic)
                 all_rows.extend(build_tidy_rows(repo, traffic, metrics))
         else:
-
-            def _fetch_one(idx_repo):
+            def _fetch_one(idx_repo: tuple[int, dict]):
                 idx, repo = idx_repo
                 traffic = get_repo_traffic(token, repo["full_name"], metrics)
                 return idx, traffic, build_tidy_rows(repo, traffic, metrics)
 
             ordered_results = []
-            with ThreadPoolExecutor(max_workers=min(8, len(repos))) as pool:
+            # Cap outer pool to 4 workers so nested per-repo 5-endpoint fan-outs stay bounded.
+            with ThreadPoolExecutor(max_workers=min(4, len(repos))) as pool:
                 futures = {
                     pool.submit(contextvars.copy_context().run, _fetch_one, (i, r)): i
                     for i, r in enumerate(repos)
@@ -309,4 +431,22 @@ def fetch_traffic_data(
                 "GitHub token is invalid or lacks repository traffic permissions (HTTP 401/403)."
             )
 
-    return pd.DataFrame(all_rows) if all_rows else pd.DataFrame()
+    return all_rows
+
+
+def fetch_traffic_data(
+    token: str,
+    repo_names=None,
+    metrics: list = None,
+    public_only: bool = False,
+):
+    """Fetch traffic across one, selected, or all repositories into a tidy DataFrame."""
+    rows = fetch_traffic_rows(
+        token,
+        repo_names=repo_names,
+        metrics=metrics,
+        public_only=public_only,
+    )
+    import pandas as pd
+
+    return pd.DataFrame(rows) if rows else pd.DataFrame()

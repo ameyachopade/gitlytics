@@ -6,11 +6,14 @@ from __future__ import annotations
 
 import contextlib
 import contextvars
+import hashlib
 import logging
 import re
 import sys
 import threading
 import time
+from collections import OrderedDict
+from typing import Any
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -23,11 +26,55 @@ BASE = "https://api.github.com"
 _GITHUB_BASE_HEADERS = {
     "Accept": "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",
+    "Accept-Encoding": "gzip, deflate",
 }
 _PUBLIC_HEADERS = dict(_GITHUB_BASE_HEADERS)
 _PER_PAGE = 100
 
 _SESSION_LOCAL = threading.local()
+
+# Bounded thread-safe ETag conditional cache (304 responses cost 0 GitHub quota).
+_ETAG_CACHE_MAXSIZE = 512
+_ETAG_CACHE: "OrderedDict[tuple[str, str, tuple[tuple[str, str], ...]], tuple[str, Any]]" = (
+    OrderedDict()
+)
+_ETAG_CACHE_LOCK = threading.Lock()
+
+
+def _clear_etag_cache() -> None:
+    """Clear the process-local ETag cache (useful for test isolation)."""
+    with _ETAG_CACHE_LOCK:
+        _ETAG_CACHE.clear()
+
+
+def _etag_cache_key(
+    url: str, headers: dict | None, params: dict | None
+) -> tuple[str, str, tuple[tuple[str, str], ...]]:
+    """Build a caller-scoped cache key without storing raw tokens."""
+    hdrs = headers or {}
+    auth = hdrs.get("Authorization") or ""
+    accept = hdrs.get("Accept") or ""
+    fp_source = f"{auth}|{accept}" if (auth or accept) else ""
+    token_fp = (
+        hashlib.sha256(fp_source.encode("utf-8")).hexdigest()[:16] if fp_source else ""
+    )
+    sorted_params = tuple(sorted((str(k), str(v)) for k, v in (params or {}).items()))
+    return (token_fp, url, sorted_params)
+
+
+def _extract_etag(response_headers: Any) -> str | None:
+    """Extract a concrete string ETag header value, ignoring non-string mock objects."""
+    if not response_headers:
+        return None
+    raw = None
+    if isinstance(response_headers, dict):
+        raw = response_headers.get("ETag") or response_headers.get("etag")
+    elif hasattr(response_headers, "get"):
+        raw = response_headers.get("ETag") or response_headers.get("etag")
+    if isinstance(raw, str):
+        cleaned = raw.strip()
+        return cleaned or None
+    return None
 
 # Caps retry sleep and total wall-clock wait so rate limits never hang forever.
 _RETRY_BUDGET_SECONDS = 30.0
@@ -136,10 +183,23 @@ def _active_deadline() -> float:
 
 
 def _safe_get(url: str, headers: dict, params: dict = None) -> tuple:
-    """Fetch JSON from GitHub with bounded retry/backoff and return (data, status_code)."""
+    """Fetch JSON from GitHub with ETag revalidation and bounded retry/backoff."""
     max_attempts = 3
     deadline = _active_deadline()
     slept = 0.0
+
+    cache_key = _etag_cache_key(url, headers, params)
+    cached_etag: str | None = None
+    cached_data: Any = None
+    with _ETAG_CACHE_LOCK:
+        cached_entry = _ETAG_CACHE.get(cache_key)
+        if cached_entry is not None:
+            cached_etag, cached_data = cached_entry
+
+    req_headers = headers
+    if cached_etag and (not headers or "If-None-Match" not in headers):
+        req_headers = {**(headers or {}), "If-None-Match": cached_etag}
+
     for attempt in range(max_attempts):
         if time.monotonic() >= deadline:
             logger.warning(
@@ -147,13 +207,25 @@ def _safe_get(url: str, headers: dict, params: dict = None) -> tuple:
             )
             return {}, -1
         try:
-            r = _http_get(url, headers=headers, params=params, timeout=10)
+            r = _http_get(url, headers=req_headers, params=params, timeout=10)
+            if r.status_code == 304 and cached_data is not None:
+                with _ETAG_CACHE_LOCK:
+                    if cache_key in _ETAG_CACHE:
+                        _ETAG_CACHE.move_to_end(cache_key)
+                return cached_data, 200
             if r.status_code == 200:
                 data = r.json()
                 # Treat HTTP 200 payloads containing an error "message" as soft errors.
                 if isinstance(data, dict) and data.get("message"):
                     logger.warning(f"GitHub soft-error for {url}: {data['message']}")
                     return {}, r.status_code
+                etag = _extract_etag(getattr(r, "headers", None))
+                if etag:
+                    with _ETAG_CACHE_LOCK:
+                        _ETAG_CACHE[cache_key] = (etag, data)
+                        _ETAG_CACHE.move_to_end(cache_key)
+                        while len(_ETAG_CACHE) > _ETAG_CACHE_MAXSIZE:
+                            _ETAG_CACHE.popitem(last=False)
                 return data, 200
 
             response_headers = getattr(r, "headers", None) or {}

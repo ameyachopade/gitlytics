@@ -5,14 +5,10 @@
 # Gitlytics
 ### Next-Gen GitHub Traffic Intelligence, Dynamic SVG Widgets & Automation
 
-[![PyPI version](https://api.gitlytics.dev/api/badge/pypi/gitlytics.svg?label=PyPI)](https://pypi.org/project/gitlytics/)
-[![Python](https://api.gitlytics.dev/api/badge/tech.svg?slug=python&style=icon_label_value&label=Python&value=3.11%2B)](https://www.python.org/) <!-- Python-3.11+ -->
-[![License](https://api.gitlytics.dev/api/badge/static.svg?label=License&message=Apache%202.0%20%2B%20Commons%20Clause&color=blue)](LICENSE)
-[![FastAPI](https://api.gitlytics.dev/api/badge/tech.svg?slug=fastapi&style=icon_label_value&label=Backend&value=FastAPI)](https://fastapi.tiangolo.com/)
-[![React](https://api.gitlytics.dev/api/badge/tech.svg?slug=react&style=icon_label_value&label=Frontend&value=React%2019)](https://react.dev/)
-[![Live Dashboard](https://api.gitlytics.dev/api/badge/static.svg?label=Studio&message=dashboard.gitlytics.dev&color=818cf8)](https://dashboard.gitlytics.dev)
-[![Documentation](https://api.gitlytics.dev/api/badge/static.svg?label=Docs&message=docs.gitlytics.dev&color=10b981)](https://docs.gitlytics.dev)
-[![Agent Skills](https://api.gitlytics.dev/api/badge/tech.svg?slug=vercel&style=icon_label_value&label=skills.sh&value=4%20Agent%20Skills)](https://skills.sh/ameyachopade/gitlytics-plugin)
+[![Python](https://api.gitlytics.dev/api/badge/tech.svg?slug=python&style=icon_label_value&label=Python&value=3.11%2B&theme=gitlytics-dark&variant=clay)](https://www.python.org/) <!-- Python-3.11+ -->
+[![FastAPI](https://api.gitlytics.dev/api/badge/tech.svg?slug=fastapi&style=icon_label_value&label=Backend&value=FastAPI&theme=gitlytics-dark&variant=clay)](https://fastapi.tiangolo.com/)
+[![React](https://api.gitlytics.dev/api/badge/tech.svg?slug=react&style=icon_label_value&label=Frontend&value=React+19&theme=gitlytics-dark&variant=clay)](https://react.dev/)
+[![GitHub Action](https://api.gitlytics.dev/api/badge/tech.svg?slug=githubactions&style=icon_label_value&label=Action&value=Traffic+Sync&theme=gitlytics-dark&variant=clay)](https://github.com/ameyachopade/gitlytics-github-traffic-automation)
 
 <br/>
 
@@ -21,9 +17,21 @@ Bypass GitHub's 14-day traffic cliff, track stargazer trajectories, and launch a
 
 > **What ships in the `pip install gitlytics` wheel:** the CLI, the Python SDK, and the local/self-hosted React dashboard. The **SVG profile cards and tech-badge renderer is a separate hosted service** at [`api.gitlytics.dev`](https://api.gitlytics.dev) - the package does not contain a card generator. See [The Gitlytics Ecosystem](#-the-gitlytics-ecosystem).
 
-[![Blog](https://api.gitlytics.dev/api/badge/static.svg?label=Blog&message=blog.gitlytics.dev&color=f59e0b)](https://blog.gitlytics.dev)
-[![GitHub Action](https://api.gitlytics.dev/api/badge/tech.svg?slug=githubactions&style=icon_label_value&label=Action&value=Traffic%20Sync)](https://github.com/ameyachopade/gitlytics-github-traffic-automation)
-[![npm](https://api.gitlytics.dev/api/badge/npm/@gitlytics/cli.svg?label=npm&color=cb3837)](https://www.npmjs.com/package/@gitlytics/cli)
+<!-- GITLYTICS:ECOSYSTEM_BADGES:START -->
+[![PyPI](https://api.gitlytics.dev/api/badge/pypi/gitlytics.svg?label=PyPI&color=E25A1C&theme=gitlytics-dark&variant=clay)](https://pypi.org/project/gitlytics/)
+[![npm](https://api.gitlytics.dev/api/badge/npm/@gitlytics/cli.svg?label=npm&color=E25A1C&theme=gitlytics-dark&variant=clay)](https://www.npmjs.com/package/@gitlytics/cli)
+[![License](https://api.gitlytics.dev/api/badge/static.svg?label=License&message=Apache+2.0+%2B+CC&color=334155&theme=gitlytics-dark&variant=clay)](LICENSE)
+[![Agent Skills](https://api.gitlytics.dev/api/badge/skills/ameyachopade/gitlytics-plugin.svg?label=skills.sh&color=334155&theme=gitlytics-dark&variant=clay)](https://skills.sh/ameyachopade/gitlytics-plugin)
+[![MCP](https://api.gitlytics.dev/api/badge/static.svg?label=MCP&message=OAuth+2.1&color=E25A1C&theme=gitlytics-dark&variant=clay)](https://docs.gitlytics.dev/mcp)
+
+<br/>
+
+[![Home](https://api.gitlytics.dev/api/badge/static.svg?label=Site&message=gitlytics.dev&color=334155&theme=gitlytics-dark&variant=clay)](https://gitlytics.dev)
+[![Dashboard](https://api.gitlytics.dev/api/badge/static.svg?label=App&message=dashboard.gitlytics.dev&color=334155&theme=gitlytics-dark&variant=clay)](https://dashboard.gitlytics.dev)
+[![Widgets](https://api.gitlytics.dev/api/badge/static.svg?label=Widgets&message=widgets.gitlytics.dev&color=334155&theme=gitlytics-dark&variant=clay)](https://widgets.gitlytics.dev)
+[![Docs](https://api.gitlytics.dev/api/badge/static.svg?label=Docs&message=docs.gitlytics.dev&color=334155&theme=gitlytics-dark&variant=clay)](https://docs.gitlytics.dev)
+[![Blog](https://api.gitlytics.dev/api/badge/static.svg?label=Blog&message=blog.gitlytics.dev&color=334155&theme=gitlytics-dark&variant=clay)](https://blog.gitlytics.dev)
+<!-- GITLYTICS:ECOSYSTEM_BADGES:END -->
 
 <br/>
 
@@ -109,7 +117,7 @@ Add any card to your GitHub `README.md` with a single line of Markdown:
 | **Contributions** | `combined-contributions` | Commits, pull requests, issues & code reviews combined. |
 | **Impact** | `open-source-impact` | Ecosystem reach, community forks, and public issue closure rate. |
 
-*...and 40 more specialized cards available in the [Interactive Embed Studio](https://dashboard.gitlytics.dev/widgets).*
+*...and 40 more specialized cards available in the [Interactive Embed Studio](https://widgets.gitlytics.dev).*
 
 </details>
 
@@ -120,7 +128,7 @@ Add any card to your GitHub `README.md` with a single line of Markdown:
 
 Supported theme values via `?theme=<name>` (plus 20 visual variants via `?variant=<name>`):
 
-`default` • `gitlytics-dark` • `dracula` • `tokyonight` • `nord` • `obsidian-gold` • `synthwave84` • `cyberpunk` • `catppuccin-mocha` • `gruvbox-dark` • `monokai` • `one-dark` • `solarized-dark` • `matrix` • `rose-pine` • `github-dark` • `github-light` • `material-ocean` • `emerald-dark` • `amber-minimal` • `slate-pro` • `ayu-dark` • `horizon` • `shades-of-purple` • `cobalt2` • `night-owl` • `palenight` • `laserwave` • `oceanic-next` • `dimmed` • `high-contrast` *(and 19 more in the [Embed Studio](https://dashboard.gitlytics.dev/widgets))*
+`default` • `gitlytics-dark` • `dracula` • `tokyonight` • `nord` • `obsidian-gold` • `synthwave84` • `cyberpunk` • `catppuccin-mocha` • `gruvbox-dark` • `monokai` • `one-dark` • `solarized-dark` • `matrix` • `rose-pine` • `github-dark` • `github-light` • `material-ocean` • `emerald-dark` • `amber-minimal` • `slate-pro` • `ayu-dark` • `horizon` • `shades-of-purple` • `cobalt2` • `night-owl` • `palenight` • `laserwave` • `oceanic-next` • `dimmed` • `high-contrast` *(and 19 more in the [Embed Studio](https://widgets.gitlytics.dev))*
 
 </details>
 

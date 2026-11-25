@@ -91,6 +91,9 @@ def _clear_api_caches():
                         rcache.clear()
                 else:
                     rcache.clear()
+            clear_etag = getattr(_core, "_clear_etag_cache", None)
+            if callable(clear_etag):
+                clear_etag()
         except Exception:
             pass
 

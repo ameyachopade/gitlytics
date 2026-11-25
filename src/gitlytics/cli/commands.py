@@ -5,10 +5,10 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 import os
 import sys
 
-from gitlytics.core.stars import fetch_star_history
 from gitlytics.exceptions import (
     GitHubAPIError,
     GitHubRateLimitError,
@@ -16,9 +16,35 @@ from gitlytics.exceptions import (
     StargazersRestrictedError,
     TokenExpiredError,
 )
-from gitlytics.sdk import fetch_traffic, serve_dashboard, sync
 
 from .parser import _err, _result_is_empty, build_parser, parse_repo_names
+
+_LAZY_HANDLERS: dict[str, tuple[str, str]] = {
+    "fetch_traffic": ("gitlytics.sdk", "fetch_traffic"),
+    "sync": ("gitlytics.sdk", "sync"),
+    "serve_dashboard": ("gitlytics.sdk", "serve_dashboard"),
+    "fetch_star_history": ("gitlytics.core.stars", "fetch_star_history"),
+}
+
+
+def __getattr__(name: str):
+    """Lazily resolve SDK/core entrypoints for monkeypatching without eager startup imports."""
+    target = _LAZY_HANDLERS.get(name)
+    if target is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attr_name = target
+    module = importlib.import_module(module_name)
+    return getattr(module, attr_name)
+
+
+def _resolve_handler(name: str):
+    """Return a test-patched handler if present in module globals, else import lazily."""
+    patched = globals().get(name)
+    if patched is not None:
+        return patched
+    module_name, attr_name = _LAZY_HANDLERS[name]
+    module = importlib.import_module(module_name)
+    return getattr(module, attr_name)
 
 # Ensure Unicode symbols render cleanly on Windows consoles (cp1252 / cmd / PowerShell).
 if hasattr(sys.stdout, "reconfigure"):
@@ -36,7 +62,8 @@ def _cmd_fetch(args, token: str) -> None:
         sys.exit(2)
 
     try:
-        result = fetch_traffic(
+        fetch_fn = _resolve_handler("fetch_traffic")
+        result = fetch_fn(
             token=token,
             repo_name=repos,
             print_table=args.print_table,
@@ -84,7 +111,8 @@ def _cmd_sync(args, token: str) -> None:
         sys.exit(2)
 
     try:
-        rows = sync(
+        sync_fn = _resolve_handler("sync")
+        rows = sync_fn(
             token=token,
             repo_name=repos,
             data_dir=args.data_dir,
@@ -137,7 +165,8 @@ def _cmd_dashboard(args, token: str | None) -> None:
 
     print(f"\n[Gitlytics] Starting Gitlytics Dashboard on http://{host}:{args.port}\n")
     try:
-        serve_dashboard(
+        serve_fn = _resolve_handler("serve_dashboard")
+        serve_fn(
             host=host,
             port=args.port,
             token=token,
@@ -157,7 +186,8 @@ def _cmd_stars(args, token: str | None) -> None:
         sys.exit(2)
 
     try:
-        points = fetch_star_history(owner, repo, token)
+        stars_fn = _resolve_handler("fetch_star_history")
+        points = stars_fn(owner, repo, token)
     except ValueError as exc:
         _err(f"❌ Error: {exc}")
         sys.exit(2)

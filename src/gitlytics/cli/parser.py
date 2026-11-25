@@ -8,7 +8,6 @@ import argparse
 import sys
 
 from gitlytics._version import __version__
-from gitlytics.core.validation import validate_owner_repo
 
 
 def _err(message: str) -> None:
@@ -34,6 +33,8 @@ def parse_repo_names(repo_arg: str):
     """Parse a comma-separated 'owner/repo' string into validated repo names."""
     if not repo_arg:
         return None
+    from gitlytics.core.validation import validate_owner_repo
+
     names = [r.strip() for r in repo_arg.split(",")]
     cleaned = []
     for name in names:
