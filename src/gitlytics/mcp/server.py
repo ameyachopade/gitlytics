@@ -417,6 +417,23 @@ LOCAL_TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
     },
     {
+        "name": "analyze_local_repo",
+        "title": "Analyze Local Git Repository Offline",
+        "description": (
+            "Run pure-Git local analysis (commit velocity, contributor share, bus factor, "
+            "high-churn file hotspots, and coding-agent fix prompt) with zero network or API calls."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "default": ".", "description": "Local Git repository path (default current directory)."},
+                "days": {"type": "integer", "minimum": 1, "maximum": 3650, "default": 90},
+            },
+            "additionalProperties": False,
+        },
+        "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False},
+    },
+    {
         "name": "local_build_widget_batch",
         "title": "Build Batch of Gitlytics Widget Embeds",
         "description": (
@@ -1112,6 +1129,16 @@ class LocalMcpServer:
                             "point_count": len(points),
                             "points": points[-120:],
                         }
+                    )
+                if name == "analyze_local_repo":
+                    from gitlytics.core.local_git import analyze_local_repo
+
+                    return _tool_result(
+                        analyze_local_repo(
+                            arguments.get("path") or ".",
+                            days=int(arguments.get("days", 90)),
+                            allowed_root=Path(os.getcwd()).resolve(),
+                        )
                     )
                 if name == "local_build_widget_embed":
                     return _tool_result(self._build_widget_embed(**arguments))

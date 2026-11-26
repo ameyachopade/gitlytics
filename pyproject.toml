@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "gitlytics"
 version = "0.9.1"
-description = "Monitor and automate your GitHub repository traffic analytics."
+description = "Git Intelligence for Teams & AI Agents - persistent traffic vaults, pure-Git local analysis, local dashboard, and stdio MCP server."
 readme = "README.md"
 requires-python = ">=3.11"
 # Declare Apache-2.0 with Commons Clause using a PEP 639 LicenseRef identifier.

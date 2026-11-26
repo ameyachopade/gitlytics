@@ -56,7 +56,7 @@ def build_parser() -> argparse.ArgumentParser:
     # Pin prog so `python -m gitlytics --help` prints "gitlytics" instead of "__main__.py".
     parser = argparse.ArgumentParser(
         prog="gitlytics",
-        description="Gitlytics - Monitor and Automate your GitHub Traffic",
+        description="Gitlytics - Git Intelligence for Teams & AI Agents",
     )
     parser.add_argument(
         "--version",
@@ -171,6 +171,30 @@ def build_parser() -> argparse.ArgumentParser:
         "repo", help="Repository in 'owner/repo' form (e.g. ameyachopade/gitlytics)."
     )
     stars_parser.add_argument("-t", "--token", help="GitHub Personal Access Token.")
+
+    # Local pure-Git offline analyzer (zero API tokens or network calls required).
+    analyze_parser = subparsers.add_parser(
+        "analyze",
+        help="Analyze a local Git checkout offline (velocity, bus factor, churn hotspots).",
+    )
+    analyze_parser.add_argument(
+        "path",
+        nargs="?",
+        default=".",
+        help="Path to the local Git repository (default current directory).",
+    )
+    analyze_parser.add_argument(
+        "--days",
+        type=int,
+        default=90,
+        help="Lookback window in days (default 90).",
+    )
+    analyze_parser.add_argument(
+        "--json",
+        dest="as_json",
+        action="store_true",
+        help="Emit machine-readable JSON output.",
+    )
 
     # Local stdio MCP server subcommand (privacy-first offline CSV vault + SDK).
     mcp_parser = subparsers.add_parser(

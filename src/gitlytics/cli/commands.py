@@ -206,6 +206,38 @@ def _cmd_stars(args, token: str | None) -> None:
     print(f"{len(points)} sampled point(s)")
 
 
+def _cmd_analyze(args) -> None:
+    """Execute the `gitlytics analyze [path]` offline pure-Git analyzer."""
+    import json
+
+    from gitlytics.core.local_git import analyze_local_repo
+
+    try:
+        report = analyze_local_repo(args.path, days=args.days)
+    except (ValueError, RuntimeError) as exc:
+        _err(f"Error: {exc}")
+        sys.exit(2)
+
+    if getattr(args, "as_json", False):
+        print(json.dumps(report, indent=2))
+        return
+
+    print(f"\nGitlytics Local Git Intelligence - {report['repo_name']} ({report['branch']})")
+    print(
+        f"Window: {report['days']}d | Commits: {report['total_commits']} "
+        f"({report['commits_per_week']}/wk) | Authors: {report['active_authors']} | Bus Factor: {report['bus_factor']}"
+    )
+    if report["top_authors"]:
+        print("\nTop Contributors:")
+        for a in report["top_authors"][:5]:
+            print(f"  - {a['author']}: {a['commits']} commits ({a['share_pct']}%)")
+    if report["hotspots"]:
+        print("\nTop Churn Hotspots:")
+        for h in report["hotspots"][:8]:
+            print(f"  - {h['file']}: {h['touches']} touches")
+    print(f"\nAgent Prompt:\n{report['agent_prompt']}\n")
+
+
 def main(argv=None) -> None:
     """Parse CLI arguments and dispatch to the matching subcommand."""
     parser = build_parser()
@@ -239,6 +271,8 @@ def main(argv=None) -> None:
         _cmd_dashboard(args, explicit_token)
     elif args.command == "stars":
         _cmd_stars(args, token)
+    elif args.command == "analyze":
+        _cmd_analyze(args)
     elif args.command == "mcp":
         from gitlytics.mcp.server import run_stdio_server
 

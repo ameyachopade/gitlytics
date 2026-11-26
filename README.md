@@ -3,7 +3,7 @@
 <img src="https://raw.githubusercontent.com/ameyachopade/gitlytics/main/assets/logo.png" alt="Gitlytics Logo" width="140" />
 
 # Gitlytics
-### Next-Gen GitHub Traffic Intelligence, Dynamic SVG Widgets & Automation
+### Git Intelligence for Teams & AI Agents - Telemetry, Local `.git` Analysis, MCP & Widgets
 
 [![Python](https://api.gitlytics.dev/api/badge/tech.svg?slug=python&style=icon_label_value&label=Python&value=3.11%2B&theme=gitlytics-dark&variant=clay)](https://www.python.org/) <!-- Python-3.11+ -->
 [![FastAPI](https://api.gitlytics.dev/api/badge/tech.svg?slug=fastapi&style=icon_label_value&label=Backend&value=FastAPI&theme=gitlytics-dark&variant=clay)](https://fastapi.tiangolo.com/)
@@ -12,10 +12,10 @@
 
 <br/>
 
-**The complete developer analytics suite for GitHub.**  
-Bypass GitHub's 14-day traffic cliff, track stargazer trajectories, and launch a local or self-hosted analytics dashboard in seconds.
+**Git Intelligence for Teams & AI Agents.**  
+Archive repository traffic past the 14-day cliff, run 100% offline pure-Git engineering audits (`gitlytics analyze .`), serve live telemetry to coding agents over MCP, and launch the unified local dashboard in seconds.
 
-> **What ships in the `pip install gitlytics` wheel:** the CLI, the Python SDK, and the local/self-hosted React dashboard. The **SVG profile cards and tech-badge renderer is a separate hosted service** at [`api.gitlytics.dev`](https://api.gitlytics.dev) - the package does not contain a card generator. See [The Gitlytics Ecosystem](#-the-gitlytics-ecosystem).
+> **What ships in the `pip install gitlytics` wheel:** the CLI (including `gitlytics analyze .` and `gitlytics mcp`), the Python SDK, and the unified local React dashboard. The **hosted SVG and 2x PNG profile cards, charts, and tech-badge renderer is a separate hosted service** at [`api.gitlytics.dev`](https://api.gitlytics.dev) - the wheel does not contain a card generator. See [The Gitlytics Ecosystem](#-the-gitlytics-ecosystem).
 
 <!-- GITLYTICS:ECOSYSTEM_BADGES:START -->
 [![PyPI](https://api.gitlytics.dev/api/badge/pypi/gitlytics.svg?label=PyPI&color=E25A1C&theme=gitlytics-dark&variant=clay)](https://pypi.org/project/gitlytics/)

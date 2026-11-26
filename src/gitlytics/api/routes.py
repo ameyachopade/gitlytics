@@ -368,6 +368,104 @@ async def upload_csv(
                 pass
 
 
+@router.get("/api/local/vault")
+def get_local_vault(request: Request):
+    """Return offline CSV vault summary and rows for the unified Local Vault Console."""
+    _require_browser_same_origin(request)
+    data_dir = os.environ.get("GITLYTICS_DATA_DIR") or "./data"
+    data_dir_path = Path(data_dir)
+    if not data_dir_path.exists() or not data_dir_path.is_dir():
+        return {
+            "data_dir": str(data_dir),
+            "repositories": [],
+            "summary": {
+                "total_views": 0,
+                "total_unique_visitors": 0,
+                "total_clones": 0,
+                "total_unique_cloners": 0,
+            },
+            "traffic": [],
+        }
+
+    csv_files = sorted(
+        (f for f in data_dir_path.glob("traffic_*.csv") if _SYNC_CSV_RE.match(f.name)),
+        key=lambda f: (len(f.stem), f.name),
+    )
+    if not csv_files:
+        return {
+            "data_dir": str(data_dir),
+            "repositories": [],
+            "summary": {
+                "total_views": 0,
+                "total_unique_visitors": 0,
+                "total_clones": 0,
+                "total_unique_cloners": 0,
+            },
+            "traffic": [],
+        }
+
+    import pandas as pd
+
+    dfs = []
+    for csv_file in csv_files:
+        try:
+            frame = cache._read_csv_cached(csv_file)
+            if "date" in frame.columns and "repository" in frame.columns:
+                dfs.append(frame)
+        except Exception as exc:
+            logger.warning("Skipping unreadable CSV '%s': %s", csv_file, exc)
+
+    if not dfs:
+        return {
+            "data_dir": str(data_dir),
+            "repositories": [],
+            "summary": {
+                "total_views": 0,
+                "total_unique_visitors": 0,
+                "total_clones": 0,
+                "total_unique_cloners": 0,
+            },
+            "traffic": [],
+        }
+
+    df = pd.concat(dfs, ignore_index=True)
+    df = df.drop_duplicates(subset=["date", "repository"], keep="last")
+    df = df.replace([float("inf"), float("-inf")], None).where(pd.notnull(df), None)
+    traffic = build_react_payload(df, deep_stats=None)
+
+    repos = [str(item.get("name") or "") for item in traffic if item.get("name")]
+    return {
+        "data_dir": str(data_dir),
+        "repositories": repos,
+        "summary": {
+            "total_views": sum(int(item.get("views") or 0) for item in traffic),
+            "total_unique_visitors": sum(int(item.get("unique_visitors") or 0) for item in traffic),
+            "total_clones": sum(int(item.get("clones") or 0) for item in traffic),
+            "total_unique_cloners": sum(int(item.get("unique_cloners") or 0) for item in traffic),
+        },
+        "traffic": traffic,
+    }
+
+
+@router.post("/api/local/analyze")
+def post_local_analyze(
+    request: Request,
+    path: str = Body(".", embed=True),
+    days: int = Body(90, embed=True),
+):
+    """Run offline pure-Git analysis scoped strictly within the current workspace directory."""
+    from gitlytics.core.local_git import analyze_local_repo
+
+    _require_browser_same_origin(request)
+    allowed_root = Path(os.environ.get("GITLYTICS_ANALYZE_ROOT") or os.getcwd()).resolve()
+    try:
+        return analyze_local_repo(path or ".", days=days, allowed_root=allowed_root)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 @router.get("/")
 def serve_index():
     """Serve the bundled React dashboard index.html shell."""

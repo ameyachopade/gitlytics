@@ -9,7 +9,7 @@ from gitlytics.mcp.server import LOCAL_TOOL_DEFINITIONS, LocalMcpServer, run_std
 
 
 def test_no_local_mcp_tool_exposes_token_parameter():
-    assert len(LOCAL_TOOL_DEFINITIONS) == 7
+    assert len(LOCAL_TOOL_DEFINITIONS) == 8
     for tool in LOCAL_TOOL_DEFINITIONS:
         props = tool["inputSchema"].get("properties", {})
         assert "token" not in props
@@ -74,7 +74,7 @@ def test_stdio_transport_emits_pure_jsonrpc_and_handles_initialize_and_list(tmp_
     init_resp = json.loads(lines[0])
     list_resp = json.loads(lines[1])
     assert init_resp["result"]["serverInfo"]["name"] == "gitlytics"
-    assert len(list_resp["result"]["tools"]) == 7
+    assert len(list_resp["result"]["tools"]) == 8
 
 
 def test_cli_parser_accepts_mcp_subcommand():
