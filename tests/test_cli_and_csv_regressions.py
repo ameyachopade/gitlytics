@@ -725,8 +725,14 @@ class TestLib11Pep639License:
 
     def test_the_build_backend_supports_pep639(self):
         data = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
-        requires = " ".join(data["build-system"]["requires"])
-        assert "setuptools>=77" in requires
+        requires = data["build-system"]["requires"]
+        match = next(
+            (re.search(r"setuptools\s*>=\s*(\d+(?:\.\d+)*)", req) for req in requires),
+            None,
+        )
+        assert match is not None, f"setuptools>=77+ missing from {requires!r}"
+        major = int(match.group(1).split(".")[0])
+        assert major >= 77, f"setuptools minimum {match.group(1)} < 77 (PEP 639)"
 
     def test_the_license_appendix_names_the_actual_terms(self):
         license_text = (ROOT / "LICENSE").read_text(encoding="utf-8")
