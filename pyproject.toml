@@ -19,7 +19,7 @@ authors = [
 # python-dotenv lives in [dev] because only tests load .env files.
 dependencies = [
     "requests>=2.34.2",
-    "certifi>=2026.10.23",
+    "certifi>=2026.11.20",
     "pandas>=2.2.3",
     "numpy>=1.26.4",
     "croniter>=6.2.4"
