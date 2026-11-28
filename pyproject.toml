@@ -1,6 +1,6 @@
 [build-system]
 # setuptools >= 77 is required for PEP 639 license and license-files keys.
-requires = ["setuptools>=77.0"]
+requires = ["setuptools>=84.2.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
